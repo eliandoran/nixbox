@@ -1,0 +1,51 @@
+{{define "content"}}
+<section>
+  <div class="section-head">
+    <h2>System</h2>
+    <form hx-post="/system/rebuild" hx-target="#job-panel" hx-swap="innerHTML">
+      <button type="submit" class="primary" {{if .Busy}}disabled{{end}}>
+        {{if .DryRun}}Rebuild (dry-run){{else}}Rebuild &amp; switch{{end}}
+      </button>
+    </form>
+  </div>
+
+  <div id="job-panel">
+    {{if .ActiveJob}}{{template "job-log" .ActiveJob}}{{end}}
+  </div>
+</section>
+
+<section>
+  <h2>Recent jobs</h2>
+  {{if .Jobs}}
+  <table class="jobs">
+    <thead><tr><th>#</th><th>Kind</th><th>Status</th><th>Started</th><th>Exit</th><th>Generation</th><th></th></tr></thead>
+    <tbody>
+      {{range .Jobs}}
+      <tr>
+        <td>{{.ID}}</td>
+        <td>{{.Kind}}</td>
+        <td><span class="status status-{{.Status}}">{{.Status}}</span></td>
+        <td>{{.StartedAt.Local.Format "2006-01-02 15:04:05"}}</td>
+        <td>{{if .ExitCode.Valid}}{{.ExitCode.Int64}}{{else}}—{{end}}</td>
+        <td>{{if .Generation.Valid}}{{.Generation.Int64}}{{else}}—{{end}}</td>
+        <td><button hx-get="/system/jobs/{{.ID}}/log" hx-target="#job-panel" hx-swap="innerHTML">log</button></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="empty">No jobs yet.</p>
+  {{end}}
+</section>
+{{end}}
+
+{{define "job-log"}}
+<div class="card log-card">
+  <div class="log-head">
+    <strong>Job #{{.ID}}</strong> — {{.Kind}}
+    <span class="status status-{{.Status}}" id="job-status">{{.Status}}</span>
+  </div>
+  <pre class="log" id="job-log" data-job-id="{{.ID}}" data-live="{{if eq .Status "running"}}1{{end}}"></pre>
+</div>
+<script>watchJob();</script>
+{{end}}

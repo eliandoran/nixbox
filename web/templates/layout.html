@@ -1,0 +1,24 @@
+{{define "layout"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · nixbox</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">nix<span>box</span></a>
+    <nav>
+      <a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>Dashboard</a>
+      <a href="/system" {{if eq .Nav "system"}}class="active"{{end}}>System</a>
+    </nav>
+    <div class="host-badge">{{.HostAttr}}</div>
+  </header>
+  <main>
+    {{template "content" .}}
+  </main>
+</body>
+</html>{{end}}

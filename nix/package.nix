@@ -1,0 +1,26 @@
+{ lib, buildGoModule }:
+
+buildGoModule {
+  pname = "nixbox";
+  version = "0.1.0";
+
+  src = lib.cleanSourceWith {
+    src = ../.;
+    filter = path: type:
+      let rel = lib.removePrefix (toString ../. + "/") (toString path);
+      in !(lib.hasPrefix "nix/" rel || lib.hasPrefix "dev-vm/" rel || rel == "flake.nix");
+  };
+
+  vendorHash = "sha256-fqXpr9fV1jeT7503uAjb4jjNPlXfESFnXr7/Uc83d4o=";
+
+  subPackages = [ "cmd/nixbox" ];
+
+  ldflags = [ "-s" "-w" ];
+
+  meta = {
+    description = "Web interface for managing a NixOS server's declarative containers";
+    mainProgram = "nixbox";
+    license = lib.licenses.mit;
+    platforms = lib.platforms.linux;
+  };
+}

@@ -1,0 +1,40 @@
+{{define "content"}}
+<section class="cards">
+  <div class="card host-card">
+    <h2>Host</h2>
+    <dl>
+      <dt>Hostname</dt><dd>{{.Host.Hostname}}</dd>
+      <dt>NixOS</dt><dd>{{.Host.OSVersion}}</dd>
+      <dt>Generation</dt><dd>{{if .Host.Generation}}{{.Host.Generation}}{{else}}—{{end}}</dd>
+      <dt>State dir</dt><dd><code>{{.Host.StateDir}}</code></dd>
+    </dl>
+  </div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Workloads</h2>
+  </div>
+  {{if .Workloads}}
+  <div class="cards" id="workloads" hx-get="/partials/workloads" hx-trigger="every 5s" hx-swap="innerHTML">
+    {{template "workload-cards" .}}
+  </div>
+  {{else}}
+  <p class="empty">No workloads yet. Container management arrives with the next milestone —
+  for now, use the <a href="/system">System</a> page to run rebuilds.</p>
+  {{end}}
+</section>
+{{end}}
+
+{{define "workload-cards"}}
+  {{range .Workloads}}
+  <div class="card workload-card">
+    <div class="workload-head">
+      <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
+      <strong>{{.Name}}</strong>
+      <span class="badge">{{.Type}}</span>
+    </div>
+    <div class="workload-state">{{.State}}</div>
+  </div>
+  {{end}}
+{{end}}
