@@ -10,31 +10,4 @@
     </dl>
   </div>
 </section>
-
-<section>
-  <div class="section-head">
-    <h2>Workloads</h2>
-    <a href="/workloads/new" class="button-link primary">New container</a>
-  </div>
-  {{if .Workloads}}
-  <div class="cards" id="workloads" hx-get="/partials/workloads" hx-trigger="every 5s" hx-swap="innerHTML">
-    {{template "workload-cards" .}}
-  </div>
-  {{else}}
-  <p class="empty">No containers yet. <a href="/workloads/new">Create the first one</a>.</p>
-  {{end}}
-</section>
-{{end}}
-
-{{define "workload-cards"}}
-  {{range .Workloads}}
-  <a class="card workload-card" href="/workloads/{{.Name}}">
-    <div class="workload-head">
-      <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
-      <strong>{{.Name}}</strong>
-      <span class="badge">{{.Type}}</span>
-    </div>
-    <div class="workload-state">{{.State}}</div>
-  </a>
-  {{end}}
 {{end}}

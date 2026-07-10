@@ -22,7 +22,7 @@ type systemData struct {
 
 func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	data := systemData{
-		baseData: s.base("System", "system"),
+		baseData: s.base(r, "System", "system"),
 		Busy:     s.jobs.Busy(),
 		DryRun:   s.cfg.DryRun,
 	}

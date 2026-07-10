@@ -22,33 +22,61 @@ type workloadView struct {
 	State   string
 }
 
-type dashboardData struct {
-	baseData
-	Host      hostInfo
+// workloadGroup buckets workloads of the same type under one sidebar heading.
+type workloadGroup struct {
+	Label     string
 	Workloads []workloadView
 }
 
-func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	data := dashboardData{baseData: s.base("Dashboard", "dashboard")}
-	data.Host = s.hostInfo()
-
-	views, err := s.workloadViews(r)
-	if err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
+// workloadTypeLabel is the sidebar heading shown for a workload type.
+func workloadTypeLabel(t string) string {
+	switch t {
+	case nix.WorkloadTypeContainer:
+		return "NixOS containers"
+	default:
+		return t
 	}
-	data.Workloads = views
+}
+
+// groupWorkloads buckets workloads by type, preserving the order each type
+// first appears in (so the grouping is stable across polls).
+func groupWorkloads(views []workloadView) []workloadGroup {
+	var groups []workloadGroup
+	index := make(map[string]int)
+	for _, v := range views {
+		i, ok := index[v.Type]
+		if !ok {
+			i = len(groups)
+			index[v.Type] = i
+			groups = append(groups, workloadGroup{Label: workloadTypeLabel(v.Type)})
+		}
+		groups[i].Workloads = append(groups[i].Workloads, v)
+	}
+	return groups
+}
+
+type dashboardData struct {
+	baseData
+	Host hostInfo
+}
+
+func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
+	data := dashboardData{baseData: s.base(r, "Dashboard", "dashboard")}
+	data.Host = s.hostInfo()
 	s.renderPage(w, "dashboard", data)
 }
 
-// handleWorkloadCards is the HTMX polling target refreshing status dots.
-func (s *Server) handleWorkloadCards(w http.ResponseWriter, r *http.Request) {
+// handleWorkloadList is the HTMX polling target that refreshes the sidebar
+// workload list (status dots). The ?active= query param preserves the
+// highlight of the workload currently being viewed.
+func (s *Server) handleWorkloadList(w http.ResponseWriter, r *http.Request) {
 	views, err := s.workloadViews(r)
 	if err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	s.render(w, "dashboard", "workload-cards", dashboardData{Workloads: views})
+	data := baseData{Active: r.URL.Query().Get("active"), WorkloadGroups: groupWorkloads(views)}
+	s.render(w, "dashboard", "workload-list", data)
 }
 
 func (s *Server) workloadViews(r *http.Request) ([]workloadView, error) {

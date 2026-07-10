@@ -36,7 +36,7 @@ type newWorkloadData struct {
 
 func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
 	s.renderPage(w, "workload_new", newWorkloadData{
-		baseData:  s.base("New container", "dashboard"),
+		baseData:  s.base(r, "New container", "dashboard"),
 		Templates: nix.Templates,
 	})
 }
@@ -48,7 +48,7 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	fail := func(msg string) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		s.renderPage(w, "workload_new", newWorkloadData{
-			baseData:  s.base("New container", "dashboard"),
+			baseData:  s.base(r, "New container", "dashboard"),
 			Templates: nix.Templates,
 			Error:     msg,
 			Name:      name,
@@ -99,10 +99,11 @@ func (s *Server) handleWorkloadDetail(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (workloadDetail, error) {
 	data := workloadDetail{
-		baseData: s.base(wl.Name, "dashboard"),
+		baseData: s.base(r, wl.Name, "dashboard"),
 		Workload: wl,
 		Busy:     s.jobs.Busy(),
 	}
+	data.Active = wl.Name
 
 	content, err := s.flake.ReadWorkload(wl.Name)
 	if err != nil {

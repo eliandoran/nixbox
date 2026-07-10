@@ -25,11 +25,39 @@
     </button>
     <div class="host-badge">{{.HostAttr}}</div>
   </header>
-  <main>
-    {{template "content" .}}
-  </main>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <span class="sidebar-title">Workloads</span>
+        <a href="/workloads/new" class="button-link primary sidebar-new">New</a>
+      </div>
+      <nav class="workload-list" id="workloads"
+           hx-get="/partials/workloads?active={{.Active}}" hx-trigger="every 5s" hx-swap="innerHTML">
+        {{template "workload-list" .}}
+      </nav>
+    </aside>
+    <main>
+      {{template "content" .}}
+    </main>
+  </div>
 </body>
 </html>{{end}}
+
+{{define "workload-list"}}
+  {{range .WorkloadGroups}}
+  <div class="workload-group">
+    <div class="workload-group-label">{{.Label}}</div>
+    {{range .Workloads}}
+    <a class="workload-item{{if eq .Name $.Active}} active{{end}}" href="/workloads/{{.Name}}">
+      <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
+      <span class="workload-name">{{.Name}}</span>
+    </a>
+    {{end}}
+  </div>
+  {{else}}
+  <p class="empty sidebar-empty">No containers yet.</p>
+  {{end}}
+{{end}}
 
 {{define "job-log"}}
 <div class="card log-card">

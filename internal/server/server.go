@@ -51,7 +51,7 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
-	s.mux.HandleFunc("GET /partials/workloads", s.handleWorkloadCards)
+	s.mux.HandleFunc("GET /partials/workloads", s.handleWorkloadList)
 	s.mux.HandleFunc("GET /workloads/new", s.handleWorkloadNew)
 	s.mux.HandleFunc("POST /workloads", s.handleWorkloadCreate)
 	s.mux.HandleFunc("GET /workloads/{name}", s.handleWorkloadDetail)
@@ -89,15 +89,24 @@ func (s *Server) parseTemplates() error {
 	return nil
 }
 
-// baseData is embedded in every page's template data.
+// baseData is embedded in every page's template data. It carries the
+// workload list rendered in the persistent sidebar on every page.
 type baseData struct {
-	Title    string
-	Nav      string
-	HostAttr string
+	Title          string
+	Nav            string
+	HostAttr       string
+	Active         string // name of the currently-viewed workload (sidebar highlight)
+	WorkloadGroups []workloadGroup
 }
 
-func (s *Server) base(title, nav string) baseData {
-	return baseData{Title: title, Nav: nav, HostAttr: s.cfg.HostAttr}
+func (s *Server) base(r *http.Request, title, nav string) baseData {
+	b := baseData{Title: title, Nav: nav, HostAttr: s.cfg.HostAttr}
+	views, err := s.workloadViews(r)
+	if err != nil {
+		slog.Error("loading sidebar workloads", "err", err)
+	}
+	b.WorkloadGroups = groupWorkloads(views)
+	return b
 }
 
 func (s *Server) render(w http.ResponseWriter, page, block string, data any) {
