@@ -27,6 +27,17 @@ function watchJob() {
 
 document.addEventListener("DOMContentLoaded", watchJob);
 
+// Theme toggle: an explicit light/dark choice is stored in localStorage and
+// mirrored on <html data-theme>; with nothing stored, CSS follows the OS.
+document.addEventListener("click", (ev) => {
+  if (!(ev.target instanceof Element) || !ev.target.closest(".theme-toggle")) return;
+  const chosen = document.documentElement.dataset.theme;
+  const system = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  const next = (chosen || system) === "dark" ? "light" : "dark";
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem("nixbox-theme", next);
+});
+
 // Editor niceties: Tab inserts two spaces, Ctrl+S submits the save form.
 document.addEventListener("keydown", (ev) => {
   const ta = ev.target;
