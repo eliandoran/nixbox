@@ -23,6 +23,7 @@ import {
   historyKeymap,
   indentWithTab,
 } from "@codemirror/commands";
+import { autocompletion } from "@codemirror/autocomplete";
 import {
   syntaxHighlighting,
   HighlightStyle,
@@ -82,6 +83,24 @@ const theme = EditorView.theme({
     backgroundColor: "transparent",
     outline: "1px solid var(--muted)",
   },
+  // Completion popup — CM's default tooltip is light; theme it to match.
+  ".cm-tooltip": {
+    backgroundColor: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: "8px",
+    color: "var(--text)",
+  },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": {
+    fontFamily: 'ui-monospace, "JetBrains Mono", Menlo, monospace',
+    fontSize: "0.82rem",
+    maxHeight: "16rem",
+  },
+  ".cm-tooltip-autocomplete ul li[aria-selected]": {
+    backgroundColor: "var(--accent)",
+    color: "var(--on-accent)",
+  },
+  ".cm-completionIcon": { color: "var(--muted)", opacity: "0.8" },
+  ".cm-completionDetail": { color: "var(--muted)", fontStyle: "italic" },
 });
 
 export function mount(textarea) {
@@ -116,6 +135,11 @@ export function mount(textarea) {
         keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
         saveKey,
         nix(),
+        // Completion for Nix keywords, builtins, and snippets, supplied by
+        // the grammar via languageData; autocompletion() just enables the UI
+        // (Ctrl-Space to open; Enter/Tab to accept). No option/package
+        // completion yet — that needs a server-side data source (Tier 1).
+        autocompletion(),
         syntaxHighlighting(highlightStyle),
         theme,
         sync,
