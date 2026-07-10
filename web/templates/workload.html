@@ -12,7 +12,7 @@
       {{if .Workload.Enabled}}
       <form method="post" action="/workloads/{{.Workload.Name}}/disable"><button>Disable</button></form>
       <form hx-post="/workloads/{{.Workload.Name}}/apply" hx-target="#job-panel" hx-swap="innerHTML">
-        <button class="primary" {{if .Busy}}disabled{{end}}>Apply</button>
+        <button class="primary" data-requires-saved {{if .Busy}}disabled{{end}}>Apply</button>
       </form>
       {{else}}
       <form method="post" action="/workloads/{{.Workload.Name}}/enable"><button class="primary">Enable</button></form>
@@ -36,7 +36,7 @@
       <button type="button" hx-post="/workloads/{{.Workload.Name}}/validate"
               hx-target="#save-result" hx-swap="innerHTML">Validate</button>
       <button type="button" hx-post="/workloads/{{.Workload.Name}}/apply" hx-vals='{"mode":"build"}'
-              hx-target="#job-panel" hx-swap="innerHTML" {{if .Busy}}disabled{{end}}>Dry build</button>
+              hx-target="#job-panel" hx-swap="innerHTML" data-requires-saved {{if .Busy}}disabled{{end}}>Dry build</button>
     </div>
   </form>
   <div id="save-result"></div>

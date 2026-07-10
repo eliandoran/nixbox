@@ -54,6 +54,47 @@ function watchContainerLogs() {
 
 document.addEventListener("DOMContentLoaded", watchContainerLogs);
 
+// Apply and Dry build always rebuild from the last *saved* file, so
+// unsaved textarea edits would silently not be deployed. Disable those
+// buttons while the editor differs from the last save.
+function guardUnsavedEditor() {
+  const ta = document.querySelector("textarea.editor");
+  if (!ta) return;
+  const guarded = Array.from(document.querySelectorAll("[data-requires-saved]"))
+    .map((btn) => ({ btn, wasDisabled: btn.disabled }));
+  let savedValue = ta.value;
+  let inflightValue = null;
+
+  function refresh() {
+    const dirty = ta.value !== savedValue;
+    for (const { btn, wasDisabled } of guarded) {
+      btn.disabled = wasDisabled || dirty;
+      btn.title = !wasDisabled && dirty ? "Unsaved changes — save first" : "";
+    }
+  }
+
+  ta.addEventListener("input", refresh);
+
+  // A completed save makes the value sent (not the possibly newer
+  // current one) the new baseline. Saves are issued by the form
+  // itself; requests from buttons inside it (Dry build) don't count.
+  const form = ta.form;
+  form?.addEventListener("htmx:beforeRequest", (ev) => {
+    if (ev.detail.elt === form) inflightValue = ta.value;
+  });
+  form?.addEventListener("htmx:afterRequest", (ev) => {
+    if (ev.detail.elt === form && ev.detail.successful && inflightValue !== null) {
+      savedValue = inflightValue;
+      inflightValue = null;
+      refresh();
+    }
+  });
+
+  refresh();
+}
+
+document.addEventListener("DOMContentLoaded", guardUnsavedEditor);
+
 // Theme toggle: an explicit light/dark choice is stored in localStorage and
 // mirrored on <html data-theme>; with nothing stored, CSS follows the OS.
 document.addEventListener("click", (ev) => {
