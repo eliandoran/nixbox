@@ -54,23 +54,27 @@ function watchContainerLogs() {
 
 document.addEventListener("DOMContentLoaded", watchContainerLogs);
 
+// Shared metric formatters, used by both the dashboard and the per-
+// container card. CPU percentages are null until an SSE stream has two
+// samples to diff, and render as an em dash.
+const fmtBytes = (n) => {
+  if (!n) return "0 B";
+  const u = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
+};
+const fmtPct = (v) => (v == null ? "—" : v.toFixed(0) + "%");
+
 // Live host + container metrics: the dashboard's #host-metrics card and
 // #container-metrics table are fed by an SSE stream that pushes one JSON
-// "sample" every couple of seconds. CPU percentages are null until the
-// stream has two samples to diff, and render as an em dash.
+// "sample" every couple of seconds.
 function watchMetrics() {
   const host = document.getElementById("host-metrics");
   const rows = document.getElementById("container-metrics");
   if (!host || !rows) return;
 
-  const fmtBytes = (n) => {
-    if (!n) return "0 B";
-    const u = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
-    let i = 0;
-    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-    return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
-  };
-  const pct = (v) => (v == null ? "—" : v.toFixed(0) + "%");
+  const pct = fmtPct;
   const setBar = (id, v) => {
     const bar = document.getElementById(id);
     if (bar) bar.style.width = Math.min(100, Math.max(0, v || 0)) + "%";
@@ -131,6 +135,25 @@ function watchMetrics() {
 }
 
 document.addEventListener("DOMContentLoaded", watchMetrics);
+
+// Live per-container usage on the workload page: the #workload-metrics
+// card streams one container's CPU/memory/tasks from its own SSE
+// endpoint. Non-running containers report "—" for memory and tasks.
+function watchWorkloadMetrics() {
+  const el = document.getElementById("workload-metrics");
+  if (!el) return;
+
+  const es = new EventSource("/events/workloads/" + el.dataset.name + "/metrics");
+  es.addEventListener("sample", (ev) => {
+    const c = JSON.parse(ev.data);
+    document.getElementById("wm-cpu").textContent = c.running ? fmtPct(c.cpuPct) : "—";
+    document.getElementById("wm-mem").textContent = c.running ? fmtBytes(c.memBytes) : "—";
+    document.getElementById("wm-tasks").textContent = c.running ? String(c.tasks) : "—";
+  });
+  es.onerror = () => {};
+}
+
+document.addEventListener("DOMContentLoaded", watchWorkloadMetrics);
 
 // Host ports are edited as repeatable rows inside the save form. Add/
 // remove clone or drop a row; each structural change nudges the unsaved-

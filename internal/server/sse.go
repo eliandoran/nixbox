@@ -170,6 +170,63 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handleWorkloadMetrics streams one container's resource usage over SSE,
+// the single-container analogue of handleMetrics used on the workload
+// page. Same delta-based CPU derivation; no host figures.
+func (s *Server) handleWorkloadMetrics(w http.ResponseWriter, r *http.Request) {
+	wl, ok := s.lookupWorkload(w, r)
+	if !ok {
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+
+	var (
+		prevTime time.Time
+		prevCPU  uint64
+		havePrev bool
+		ticker   = time.NewTicker(2 * time.Second)
+	)
+	defer ticker.Stop()
+
+	for {
+		now := time.Now()
+		usages, _ := s.machines.Usages(r.Context(), []string{wl.Name})
+		u := usages[wl.Name]
+
+		m := containerMetrics{
+			Name: wl.Name, Running: u.Running,
+			MemBytes: u.MemBytes, Tasks: u.Tasks,
+		}
+		wallNS := now.Sub(prevTime).Nanoseconds()
+		if havePrev && wallNS > 0 && u.CPUNSec >= prevCPU {
+			pct := float64(u.CPUNSec-prevCPU) / float64(wallNS) * 100
+			m.CPUPct = &pct
+		}
+
+		buf, err := json.Marshal(m)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, "event: sample\ndata: %s\n\n", buf)
+		flusher.Flush()
+
+		prevTime, prevCPU, havePrev = now, u.CPUNSec, true
+
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
 // handleJobEvents streams a job's log over SSE by tailing its log file.
 // Events: "append" carries one log line; "done" carries the final
 // status and ends the stream. Tailing the file (rather than an
