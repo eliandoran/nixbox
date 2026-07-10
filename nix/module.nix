@@ -56,6 +56,8 @@ in
       ];
 
       environment = {
+        # nix needs a writable cache/state home when run from a unit.
+        HOME = "/root";
         NIXBOX_LISTEN = cfg.listenAddress;
         NIXBOX_HOST_FLAKE = cfg.hostFlake;
         NIXBOX_HOST_ATTR = cfg.hostAttr;

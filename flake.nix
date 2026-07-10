@@ -15,6 +15,9 @@
       packages = forAllSystems (pkgs: rec {
         nixbox = pkgs.callPackage ./nix/package.nix { };
         default = nixbox;
+      } // nixpkgs.lib.optionalAttrs (pkgs.stdenv.hostPlatform.system == "x86_64-linux") {
+        # Disposable dev VM: `nix build .#vm && ./result/bin/run-testhost-vm`
+        vm = self.nixosConfigurations.devvm.config.system.build.vm;
       });
 
       devShells = forAllSystems (pkgs: {
@@ -32,6 +35,17 @@
         imports = [ ./nix/module.nix ];
         services.nixbox.package =
           nixpkgs.lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.nixbox;
+      };
+
+      # Development VM: a throwaway NixOS machine running nixbox for
+      # real (no dry-run), able to rebuild itself from its /etc/nixos.
+      nixosConfigurations.devvm = nixpkgs.lib.nixosSystem {
+        system = "x86_64-linux";
+        specialArgs = { nixbox-src = self; };
+        modules = [
+          self.nixosModules.nixbox
+          ./nix/dev-vm/configuration.nix
+        ];
       };
     };
 }

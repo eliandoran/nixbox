@@ -59,6 +59,22 @@ $ NIXBOX_DRY_RUN=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve
 can be exercised without touching the system. Real rebuilds should only
 be tested in a VM.
 
+### Dev VM (real rebuilds, disposable)
+
+```console
+$ nix build .#vm
+$ ./result/bin/run-testhost-vm
+```
+
+Boots a throwaway NixOS VM running nixbox for real. Open
+http://localhost:18368, create a container, press Apply — an actual
+`nixos-rebuild switch` runs inside the VM. The nginx template is
+reachable at http://localhost:18080 once applied. The VM shares the
+host's `/nix/store` read-only, so rebuilds inside are mostly cache-hot.
+State lives in `testhost.qcow2` in your working directory; delete it
+for a fresh machine. Console auto-login as root (password `nixbox`),
+headless via `QEMU_OPTS="-display none"`.
+
 ## Configuration
 
 Set through the `services.nixbox` NixOS module (see `nix/module.nix`):

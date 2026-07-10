@@ -2,3 +2,4 @@
 /nixbox
 *.db
 /dev-state/
+*.qcow2
