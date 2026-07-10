@@ -47,6 +47,10 @@ var migrations = []string{
 	// Host firewall ports a workload asks nixbox to open, snapshotted per
 	// revision as a canonical "8080/tcp 53/udp" string (see nix.HostPort).
 	`ALTER TABLE revisions ADD COLUMN ports TEXT NOT NULL DEFAULT '';`,
+	// Optional human-friendly label shown in the UI. Purely cosmetic: the
+	// `name` column remains the load-bearing ID (URL key, filesystem dir,
+	// systemd/NixOS container identity). Empty means "fall back to name".
+	`ALTER TABLE workloads ADD COLUMN display_name TEXT NOT NULL DEFAULT '';`,
 }
 
 func (s *Store) migrate() error {

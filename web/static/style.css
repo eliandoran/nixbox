@@ -256,6 +256,13 @@ table.jobs th { color: var(--muted); font-weight: 500; font-size: 0.82rem; }
 .status-failed { color: var(--bad); border-color: var(--bad); }
 .status-running { color: var(--warn); border-color: var(--warn); }
 
+/* The Load card carries meter bars + long "used / total" labels, so it
+   spans two grid tracks. A max-content label column with non-wrapping
+   terms keeps "Load avg" / "Store disk" on one line; the meters take the
+   slack in the value column. */
+.metrics-card { grid-column: span 2; }
+.metrics-card dl { grid-template-columns: max-content 1fr; }
+.metrics-card dt { white-space: nowrap; }
 .metrics-card dd { display: flex; align-items: center; gap: 0.6rem; }
 .meter {
   flex: 1;
@@ -279,12 +286,17 @@ table.jobs th { color: var(--muted); font-weight: 500; font-size: 0.82rem; }
   white-space: nowrap;
 }
 table.metrics-table td { font-variant-numeric: tabular-nums; }
-table.metrics-table td:first-child {
-  font-variant-numeric: normal;
+table.metrics-table tbody tr[data-href] { cursor: pointer; }
+table.metrics-table tbody tr[data-href]:hover { background: var(--surface-2); }
+table.metrics-table td:first-child { font-variant-numeric: normal; }
+table.metrics-table td:first-child a {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  color: inherit;
+  text-decoration: none;
 }
+table.metrics-table td:first-child a:hover { color: var(--accent); }
 
 .log-card { margin-top: 1rem; padding: 0; overflow: hidden; }
 .log-head {

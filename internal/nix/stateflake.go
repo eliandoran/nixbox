@@ -204,6 +204,26 @@ func ValidateName(name string) error {
 	return nil
 }
 
+// maxDisplayName bounds the optional friendly name. It never reaches the
+// Nix eval path or a filesystem path (only the ID does), so the only
+// constraints are a sane length and no control characters that would
+// mangle the rendered page.
+const maxDisplayName = 60
+
+// ValidateDisplayName checks the optional friendly label. An empty string
+// is valid (the UI falls back to the ID).
+func ValidateDisplayName(name string) error {
+	if len(name) > maxDisplayName {
+		return fmt.Errorf("display name too long: %d characters (max %d)", len(name), maxDisplayName)
+	}
+	for _, r := range name {
+		if r == '\n' || r == '\r' || r == '\t' || (r < 0x20) {
+			return fmt.Errorf("display name must not contain control characters")
+		}
+	}
+	return nil
+}
+
 // nixAttrName quotes the attribute if it isn't a valid bare Nix
 // identifier (e.g. names starting with a digit, or containing -).
 func nixAttrName(name string) string {

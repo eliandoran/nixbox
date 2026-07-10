@@ -39,12 +39,22 @@ var ErrNotFound = errors.New("not found")
 
 type Workload struct {
 	ID                int64
-	Name              string
+	Name              string // load-bearing ID: URL key, filesystem dir, container identity
+	DisplayName       string // optional friendly label; empty means "use Name"
 	Type              string
 	Enabled           bool
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	AppliedRevisionID sql.NullInt64
+}
+
+// Display is the label to show in the UI: the friendly name if set,
+// otherwise the ID.
+func (w *Workload) Display() string {
+	if w.DisplayName != "" {
+		return w.DisplayName
+	}
+	return w.Name
 }
 
 type Revision struct {
@@ -85,7 +95,7 @@ type Job struct {
 	Generation sql.NullInt64
 }
 
-func (s *Store) CreateWorkload(name, typ, content, ports string) (*Workload, error) {
+func (s *Store) CreateWorkload(name, displayName, typ, content, ports string) (*Workload, error) {
 	now := time.Now().UTC()
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -94,8 +104,8 @@ func (s *Store) CreateWorkload(name, typ, content, ports string) (*Workload, err
 	defer tx.Rollback()
 
 	res, err := tx.Exec(
-		`INSERT INTO workloads (name, type, enabled, created_at, updated_at) VALUES (?, ?, 0, ?, ?)`,
-		name, typ, now, now)
+		`INSERT INTO workloads (name, display_name, type, enabled, created_at, updated_at) VALUES (?, ?, ?, 0, ?, ?)`,
+		name, displayName, typ, now, now)
 	if err != nil {
 		return nil, err
 	}
@@ -116,19 +126,19 @@ func (s *Store) CreateWorkload(name, typ, content, ports string) (*Workload, err
 
 func (s *Store) WorkloadByID(id int64) (*Workload, error) {
 	return scanWorkload(s.db.QueryRow(
-		`SELECT id, name, type, enabled, created_at, updated_at, applied_revision_id
+		`SELECT id, name, display_name, type, enabled, created_at, updated_at, applied_revision_id
 		 FROM workloads WHERE id = ?`, id))
 }
 
 func (s *Store) WorkloadByName(name string) (*Workload, error) {
 	return scanWorkload(s.db.QueryRow(
-		`SELECT id, name, type, enabled, created_at, updated_at, applied_revision_id
+		`SELECT id, name, display_name, type, enabled, created_at, updated_at, applied_revision_id
 		 FROM workloads WHERE name = ?`, name))
 }
 
 func (s *Store) Workloads() ([]Workload, error) {
 	rows, err := s.db.Query(
-		`SELECT id, name, type, enabled, created_at, updated_at, applied_revision_id
+		`SELECT id, name, display_name, type, enabled, created_at, updated_at, applied_revision_id
 		 FROM workloads ORDER BY name`)
 	if err != nil {
 		return nil, err
@@ -296,7 +306,7 @@ type rowScanner interface{ Scan(dest ...any) error }
 
 func scanWorkload(r rowScanner) (*Workload, error) {
 	var w Workload
-	err := r.Scan(&w.ID, &w.Name, &w.Type, &w.Enabled, &w.CreatedAt, &w.UpdatedAt, &w.AppliedRevisionID)
+	err := r.Scan(&w.ID, &w.Name, &w.DisplayName, &w.Type, &w.Enabled, &w.CreatedAt, &w.UpdatedAt, &w.AppliedRevisionID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

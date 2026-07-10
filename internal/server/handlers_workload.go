@@ -30,9 +30,10 @@ type workloadDetail struct {
 
 type newWorkloadData struct {
 	baseData
-	Templates []nix.Template
-	Error     string
-	Name      string
+	Templates   []nix.Template
+	Error       string
+	Name        string
+	DisplayName string
 }
 
 func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
@@ -44,19 +45,25 @@ func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.FormValue("name"))
+	displayName := strings.TrimSpace(r.FormValue("display_name"))
 	tmplID := r.FormValue("template")
 
 	fail := func(msg string) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		s.renderPage(w, "workload_new", newWorkloadData{
-			baseData:  s.base(r, "New container", "dashboard"),
-			Templates: nix.Templates,
-			Error:     msg,
-			Name:      name,
+			baseData:    s.base(r, "New container", "dashboard"),
+			Templates:   nix.Templates,
+			Error:       msg,
+			Name:        name,
+			DisplayName: displayName,
 		})
 	}
 
 	if err := nix.ValidateName(name); err != nil {
+		fail(err.Error())
+		return
+	}
+	if err := nix.ValidateDisplayName(displayName); err != nil {
 		fail(err.Error())
 		return
 	}

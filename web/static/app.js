@@ -77,6 +77,15 @@ function watchMetrics() {
   };
   const ratio = (used, total) => (total ? (used / total) * 100 : 0);
 
+  // Whole-row navigation to the container page (the name is also a real
+  // anchor, so keyboard focus and modifier-click open a new tab as usual;
+  // let those clicks fall through rather than double-handling them).
+  rows.addEventListener("click", (ev) => {
+    if (ev.target.closest("a")) return;
+    const tr = ev.target.closest("tr[data-href]");
+    if (tr) location.href = tr.dataset.href;
+  });
+
   const es = new EventSource("/events/metrics");
   es.addEventListener("sample", (ev) => {
     const s = JSON.parse(ev.data);
@@ -100,15 +109,19 @@ function watchMetrics() {
     }
     rows.replaceChildren(...s.containers.map((c) => {
       const tr = document.createElement("tr");
+      tr.dataset.href = "/workloads/" + c.name;
       const cell = (text) => {
         const td = document.createElement("td");
         td.textContent = text;
         return td;
       };
       const name = document.createElement("td");
+      const link = document.createElement("a");
+      link.href = tr.dataset.href;
       const dot = document.createElement("span");
       dot.className = "dot " + (c.running ? "dot-on" : "dot-off");
-      name.append(dot, " ", c.name);
+      link.append(dot, " ", c.name);
+      name.append(link);
       tr.append(name, cell(pct(c.cpuPct)), cell(fmtBytes(c.memBytes)),
                 cell(c.running ? String(c.tasks) : "—"));
       return tr;
