@@ -22,3 +22,14 @@
   </main>
 </body>
 </html>{{end}}
+
+{{define "job-log"}}
+<div class="card log-card">
+  <div class="log-head">
+    <strong>Job #{{.ID}}</strong> — {{.Kind}}
+    <span class="status status-{{.Status}}" id="job-status">{{.Status}}</span>
+  </div>
+  <pre class="log" id="job-log" data-job-id="{{.ID}}" data-live="{{if eq .Status "running"}}1{{end}}"></pre>
+</div>
+<script>watchJob();</script>
+{{end}}

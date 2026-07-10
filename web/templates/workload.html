@@ -1,0 +1,95 @@
+{{define "content"}}
+<section>
+  <div class="section-head">
+    <h2>
+      <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
+      {{.Workload.Name}}
+      <span class="badge">{{.Workload.Type}}</span>
+      <span class="badge state-{{.State}}">{{.State}}</span>
+      {{if .Workload.Enabled}}<span class="badge badge-on">enabled</span>{{else}}<span class="badge">disabled</span>{{end}}
+    </h2>
+    <div class="action-bar">
+      {{if .Workload.Enabled}}
+      <form method="post" action="/workloads/{{.Workload.Name}}/disable"><button>Disable</button></form>
+      <form hx-post="/workloads/{{.Workload.Name}}/apply" hx-target="#job-panel" hx-swap="innerHTML">
+        <button class="primary" {{if .Busy}}disabled{{end}}>Apply</button>
+      </form>
+      {{else}}
+      <form method="post" action="/workloads/{{.Workload.Name}}/enable"><button class="primary">Enable</button></form>
+      {{end}}
+      {{if .Running}}
+      <form method="post" action="/workloads/{{.Workload.Name}}/restart"><button>Restart</button></form>
+      <form method="post" action="/workloads/{{.Workload.Name}}/stop"><button>Stop</button></form>
+      {{else}}
+      <form method="post" action="/workloads/{{.Workload.Name}}/start"><button>Start</button></form>
+      {{end}}
+    </div>
+  </div>
+  <p class="hint">systemd: {{.Status}}</p>
+
+  {{if .Flash}}<div class="banner banner-ok">{{.Flash}}</div>{{end}}
+
+  <form hx-post="/workloads/{{.Workload.Name}}/save" hx-target="#save-result" hx-swap="innerHTML">
+    <textarea name="content" class="editor" spellcheck="false" rows="18">{{.Content}}</textarea>
+    <div class="form-actions">
+      <button type="submit" class="primary">Save</button>
+      <button type="button" hx-post="/workloads/{{.Workload.Name}}/validate"
+              hx-target="#save-result" hx-swap="innerHTML">Validate</button>
+      <button type="button" hx-post="/workloads/{{.Workload.Name}}/apply" hx-vals='{"mode":"build"}'
+              hx-target="#job-panel" hx-swap="innerHTML" {{if .Busy}}disabled{{end}}>Dry build</button>
+    </div>
+  </form>
+  <div id="save-result"></div>
+  <div id="job-panel"></div>
+</section>
+
+<section>
+  <h2>Revisions</h2>
+  {{if .Revisions}}
+  <table class="jobs">
+    <thead><tr><th>#</th><th>Saved</th><th>Note</th><th></th><th></th></tr></thead>
+    <tbody>
+      {{range .Revisions}}
+      <tr>
+        <td>{{.ID}}</td>
+        <td>{{.CreatedAt.Local.Format "2006-01-02 15:04:05"}}</td>
+        <td>{{.Note}}
+          {{if and $.Workload.AppliedRevisionID.Valid (eq $.Workload.AppliedRevisionID.Int64 .ID)}}
+          <span class="badge badge-on">applied</span>
+          {{end}}
+        </td>
+        <td class="rev-content"><details><summary>view</summary><pre>{{.Content}}</pre></details></td>
+        <td>
+          <form method="post" action="/workloads/{{$.Workload.Name}}/revisions/{{.ID}}/restore">
+            <button>Restore</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{end}}
+</section>
+
+<section class="danger-zone card">
+  <h2>Destroy container</h2>
+  <p class="hint">Disables the container and rebuilds the system without it.
+  The container's data under <code>/var/lib/nixos-containers/{{.Workload.Name}}</code>
+  is kept unless you check the box below.</p>
+  <form hx-post="/workloads/{{.Workload.Name}}/destroy" hx-target="#job-panel" hx-swap="innerHTML">
+    <label for="confirm">Type <strong>{{.Workload.Name}}</strong> to confirm</label>
+    <input type="text" id="confirm" name="confirm" autocomplete="off">
+    <label class="checkbox">
+      <input type="checkbox" name="delete_data"> Also delete container data
+    </label>
+    <div class="form-actions">
+      <button class="danger" {{if .Busy}}disabled{{end}}>Destroy</button>
+    </div>
+  </form>
+</section>
+{{end}}
+
+{{define "save-result"}}
+{{if .Error}}<div class="banner banner-error"><pre>{{.Error}}</pre></div>{{end}}
+{{if .Flash}}<div class="banner banner-ok">{{.Flash}}</div>{{end}}
+{{end}}

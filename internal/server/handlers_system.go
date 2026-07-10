@@ -43,17 +43,7 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 
 // handleRebuild starts an apply job and returns the live log fragment.
 func (s *Server) handleRebuild(w http.ResponseWriter, r *http.Request) {
-	// Regenerate the index from enabled workloads before rebuilding, so
-	// the state flake always matches the database.
-	if err := s.regenerateIndex(); err != nil {
-		httpError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	job, err := s.jobs.Start(store.JobApply, nil, func(ctx context.Context, log io.Writer) (jobs.Result, error) {
-		code, gen, err := s.pipeline.Rebuild(ctx, log, nix.ModeSwitch)
-		return jobs.Result{ExitCode: code, Generation: gen}, err
-	})
+	job, err := s.startApply(nil, nix.ModeSwitch)
 	if errors.Is(err, jobs.ErrBusy) {
 		http.Error(w, "a job is already running", http.StatusConflict)
 		return
@@ -63,6 +53,50 @@ func (s *Server) handleRebuild(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.render(w, "system", "job-log", job)
+}
+
+// startApply regenerates the index and launches a rebuild job. On a
+// successful switch it records which revision of each enabled workload
+// is now live. workloadID only attributes the job in history; a
+// rebuild always applies the whole system.
+func (s *Server) startApply(workloadID *int64, mode nix.RebuildMode) (*store.Job, error) {
+	if err := s.regenerateIndex(); err != nil {
+		return nil, err
+	}
+
+	// Snapshot revisions now: edits made while the rebuild runs must
+	// not be marked as applied.
+	applied := map[int64]int64{}
+	workloads, err := s.store.Workloads()
+	if err != nil {
+		return nil, err
+	}
+	for _, wl := range workloads {
+		if !wl.Enabled {
+			continue
+		}
+		rev, err := s.store.LatestRevision(wl.ID)
+		if err != nil {
+			return nil, err
+		}
+		applied[wl.ID] = rev.ID
+	}
+
+	kind := store.JobApply
+	if mode == nix.ModeBuild {
+		kind = store.JobValidate
+	}
+	return s.jobs.Start(kind, workloadID, func(ctx context.Context, log io.Writer) (jobs.Result, error) {
+		code, gen, err := s.pipeline.Rebuild(ctx, log, mode)
+		if err == nil && code == 0 && mode != nix.ModeBuild {
+			for wid, rid := range applied {
+				if err := s.store.MarkApplied(wid, rid); err != nil {
+					return jobs.Result{ExitCode: code, Generation: gen}, err
+				}
+			}
+		}
+		return jobs.Result{ExitCode: code, Generation: gen}, err
+	})
 }
 
 // handleJobLogFragment re-renders the log pane for a historical job.

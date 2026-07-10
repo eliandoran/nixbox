@@ -152,6 +152,113 @@ table.jobs th { color: var(--muted); font-weight: 500; font-size: 0.82rem; }
 }
 .log-head .status { margin-left: auto; }
 
+.narrow { max-width: 560px; }
+
+.form label { display: block; margin: 0.75rem 0 0.25rem; color: var(--muted); }
+.form input[type="text"] {
+  font: inherit;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.form input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+.hint { color: var(--muted); font-size: 0.85rem; }
+
+.template-picker { display: grid; gap: 0.5rem; }
+.template-option {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.template-option:has(input:checked) { border-color: var(--accent); background: var(--surface-2); }
+.template-option input { margin-top: 0.3rem; }
+.template-option p { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.85rem; }
+
+.form-actions { display: flex; gap: 0.6rem; margin-top: 1rem; align-items: center; }
+
+.button-link {
+  display: inline-block;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.35rem 0.9rem;
+}
+.button-link:hover { text-decoration: none; border-color: var(--accent); }
+.button-link.primary { background: var(--accent); color: #10131a; font-weight: 600; border: none; }
+
+.action-bar { display: flex; gap: 0.5rem; }
+.action-bar form { margin: 0; }
+
+.section-head h2 { display: flex; align-items: center; gap: 0.5rem; }
+
+textarea.editor {
+  width: 100%;
+  font-family: ui-monospace, "JetBrains Mono", Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem;
+  resize: vertical;
+  tab-size: 2;
+}
+textarea.editor:focus { outline: none; border-color: var(--accent); }
+
+.banner {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  margin: 0.75rem 0;
+}
+.banner pre { margin: 0; white-space: pre-wrap; }
+.banner-ok { border-color: var(--ok); color: var(--ok); }
+.banner-error { border-color: var(--bad); color: var(--bad); }
+
+.badge.state-draft { color: var(--muted); }
+.badge.state-pending { color: var(--warn); border-color: var(--warn); }
+.badge.state-applied { color: var(--ok); border-color: var(--ok); }
+.badge.badge-on { color: var(--ok); border-color: var(--ok); }
+
+a.workload-card { color: var(--text); display: block; }
+a.workload-card:hover { text-decoration: none; border-color: var(--accent); }
+
+.rev-content details pre {
+  max-height: 240px;
+  overflow: auto;
+  background: var(--bg);
+  padding: 0.6rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+}
+.rev-content summary { cursor: pointer; color: var(--accent); }
+
+.danger-zone { border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); margin-top: 2rem; }
+.danger-zone input[type="text"] {
+  font: inherit;
+  display: block;
+  padding: 0.4rem 0.6rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 0.25rem 0 0.5rem;
+}
+.danger-zone label { color: var(--muted); }
+.checkbox { display: flex; align-items: center; gap: 0.5rem; }
+button.danger { border-color: var(--bad); color: var(--bad); }
+button.danger:hover { background: var(--bad); color: #10131a; }
+
 pre.log {
   margin: 0;
   padding: 1rem;

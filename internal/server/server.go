@@ -52,6 +52,17 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
 	s.mux.HandleFunc("GET /partials/workloads", s.handleWorkloadCards)
+	s.mux.HandleFunc("GET /workloads/new", s.handleWorkloadNew)
+	s.mux.HandleFunc("POST /workloads", s.handleWorkloadCreate)
+	s.mux.HandleFunc("GET /workloads/{name}", s.handleWorkloadDetail)
+	s.mux.HandleFunc("POST /workloads/{name}/save", s.handleWorkloadSave)
+	s.mux.HandleFunc("POST /workloads/{name}/validate", s.handleWorkloadValidate)
+	s.mux.HandleFunc("POST /workloads/{name}/enable", s.handleWorkloadEnable)
+	s.mux.HandleFunc("POST /workloads/{name}/disable", s.handleWorkloadDisable)
+	s.mux.HandleFunc("POST /workloads/{name}/apply", s.handleWorkloadApply)
+	s.mux.HandleFunc("POST /workloads/{name}/destroy", s.handleWorkloadDestroy)
+	s.mux.HandleFunc("POST /workloads/{name}/revisions/{id}/restore", s.handleWorkloadRestore)
+	s.mux.HandleFunc("POST /workloads/{name}/{verb}", s.handleWorkloadLifecycle)
 	s.mux.HandleFunc("GET /system", s.handleSystem)
 	s.mux.HandleFunc("POST /system/rebuild", s.handleRebuild)
 	s.mux.HandleFunc("GET /system/jobs/{id}/log", s.handleJobLogFragment)
@@ -65,7 +76,7 @@ func (s *Server) Handler() http.Handler { return s.mux }
 // parseTemplates builds one template set per page (layout + page), so
 // pages can define the same block names without clashing.
 func (s *Server) parseTemplates() error {
-	pages := []string{"dashboard", "system"}
+	pages := []string{"dashboard", "system", "workload", "workload_new"}
 	s.pages = make(map[string]*template.Template, len(pages))
 	for _, name := range pages {
 		t, err := template.ParseFS(web.FS, "templates/layout.html", "templates/"+name+".html")

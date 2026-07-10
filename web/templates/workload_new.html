@@ -1,0 +1,36 @@
+{{define "content"}}
+<section class="narrow">
+  <h2>New container</h2>
+
+  {{if .Error}}<div class="banner banner-error">{{.Error}}</div>{{end}}
+
+  <form method="post" action="/workloads" class="card form">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" value="{{.Name}}" required
+           pattern="[a-z0-9]([a-z0-9-]{0,9}[a-z0-9])?" maxlength="11"
+           autocomplete="off" autofocus>
+    <p class="hint">1–11 characters of <code>a-z 0-9 -</code> (systemd-nspawn network interface limit).</p>
+
+    <label>Template</label>
+    <div class="template-picker">
+      {{range $i, $t := .Templates}}
+      <label class="template-option">
+        <input type="radio" name="template" value="{{$t.ID}}" {{if eq $i 0}}checked{{end}}>
+        <div>
+          <strong>{{$t.Name}}</strong>
+          <p>{{$t.Description}}</p>
+        </div>
+      </label>
+      {{end}}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="primary">Create</button>
+      <a href="/" class="button-link">Cancel</a>
+    </div>
+  </form>
+
+  <p class="hint">The container is created as a draft: it only becomes part of the
+  system after you enable it and apply.</p>
+</section>
+{{end}}

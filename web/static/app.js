@@ -26,3 +26,18 @@ function watchJob() {
 }
 
 document.addEventListener("DOMContentLoaded", watchJob);
+
+// Editor niceties: Tab inserts two spaces, Ctrl+S submits the save form.
+document.addEventListener("keydown", (ev) => {
+  const ta = ev.target;
+  if (!(ta instanceof HTMLTextAreaElement) || !ta.classList.contains("editor")) return;
+
+  if (ev.key === "Tab") {
+    ev.preventDefault();
+    const start = ta.selectionStart;
+    ta.setRangeText("  ", start, ta.selectionEnd, "end");
+  } else if (ev.key === "s" && (ev.ctrlKey || ev.metaKey)) {
+    ev.preventDefault();
+    ta.form?.requestSubmit();
+  }
+});
