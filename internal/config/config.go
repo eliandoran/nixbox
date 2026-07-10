@@ -20,6 +20,11 @@ type Config struct {
 	// DryRun makes command runners log instead of execute, and
 	// downgrades `nixos-rebuild switch` to `build`.
 	DryRun bool
+	// Dev serves static assets and templates live from ./web on disk
+	// (and re-parses templates per request) so JS/CSS/HTML edits show
+	// on a browser refresh without recompiling. Off in production,
+	// where everything is served from the embedded FS.
+	Dev bool
 }
 
 func FromEnv() Config {
@@ -29,6 +34,7 @@ func FromEnv() Config {
 		HostFlake: envOr("NIXBOX_HOST_FLAKE", "/etc/nixos"),
 		HostAttr:  envOr("NIXBOX_HOST_ATTR", hostname()),
 		DryRun:    os.Getenv("NIXBOX_DRY_RUN") != "",
+		Dev:       os.Getenv("NIXBOX_DEV") != "",
 	}
 	return cfg
 }

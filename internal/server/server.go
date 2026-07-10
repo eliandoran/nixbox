@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/elian/nixbox/internal/config"
 	"github.com/elian/nixbox/internal/jobs"
@@ -44,7 +45,7 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 		return nil, err
 	}
 
-	static, err := fs.Sub(web.FS, "static")
+	static, err := fs.Sub(s.assetFS(), "static")
 	if err != nil {
 		return nil, err
 	}
@@ -77,13 +78,26 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 
 func (s *Server) Handler() http.Handler { return s.mux }
 
+// assetFS returns the filesystem backing /static and the templates,
+// rooted so that "static" and "templates/..." resolve. In dev mode it
+// reads live from ./web on disk (edits show on refresh, no recompile);
+// otherwise it uses the binary's embedded FS.
+func (s *Server) assetFS() fs.FS {
+	if s.cfg.Dev {
+		return os.DirFS("web")
+	}
+	return web.FS
+}
+
 // parseTemplates builds one template set per page (layout + page), so
-// pages can define the same block names without clashing.
+// pages can define the same block names without clashing. In dev mode
+// it is re-run on every render so template edits show on a refresh.
 func (s *Server) parseTemplates() error {
 	pages := []string{"dashboard", "system", "workload", "workload_new"}
+	src := s.assetFS()
 	s.pages = make(map[string]*template.Template, len(pages))
 	for _, name := range pages {
-		t, err := template.ParseFS(web.FS, "templates/layout.html", "templates/"+name+".html")
+		t, err := template.ParseFS(src, "templates/layout.html", "templates/"+name+".html")
 		if err != nil {
 			return err
 		}
@@ -113,6 +127,13 @@ func (s *Server) base(r *http.Request, title, nav string) baseData {
 }
 
 func (s *Server) render(w http.ResponseWriter, page, block string, data any) {
+	if s.cfg.Dev {
+		if err := s.parseTemplates(); err != nil {
+			slog.Error("re-parsing templates", "err", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 	t, ok := s.pages[page]
 	if !ok {
 		http.Error(w, "unknown page "+page, http.StatusInternalServerError)
