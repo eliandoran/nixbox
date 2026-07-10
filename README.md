@@ -52,9 +52,12 @@ Setup is two steps because the `path:` input must exist first:
 ```console
 $ nix develop
 $ go test ./...
-$ NIXBOX_DRY_RUN=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve
+$ just dev
 ```
 
+The devShell provides `just` as a command runner (`just --list` shows
+the recipes). `just dev` starts the dry-run server
+(`NIXBOX_DRY_RUN=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve`);
 `NIXBOX_DRY_RUN` logs commands instead of executing them, so the full UI
 can be exercised without touching the system. Real rebuilds should only
 be tested in a VM.
@@ -62,9 +65,10 @@ be tested in a VM.
 ### Dev VM (real rebuilds, disposable)
 
 ```console
-$ nix build .#vm
-$ ./result/bin/run-testhost-vm
+$ just vm
 ```
+
+(equivalently `nix build .#vm && ./result/bin/run-testhost-vm`).
 
 Boots a throwaway NixOS VM running nixbox for real. Open
 http://localhost:18368, create a container, press Apply — an actual
