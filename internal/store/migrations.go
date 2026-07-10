@@ -44,6 +44,9 @@ var migrations = []string{
 		value TEXT NOT NULL
 	);
 	`,
+	// Host firewall ports a workload asks nixbox to open, snapshotted per
+	// revision as a canonical "8080/tcp 53/udp" string (see nix.HostPort).
+	`ALTER TABLE revisions ADD COLUMN ports TEXT NOT NULL DEFAULT '';`,
 }
 
 func (s *Store) migrate() error {

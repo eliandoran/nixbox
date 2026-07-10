@@ -18,8 +18,9 @@ type workloadDetail struct {
 	baseData
 	Workload  *store.Workload
 	Content   string
-	State     string // draft | pending | applied
-	Status    string // systemd state, e.g. "active (running)"
+	Ports     []nix.HostPort // host firewall ports from the latest revision
+	State     string         // draft | pending | applied
+	Status    string         // systemd state, e.g. "active (running)"
 	Running   bool
 	Revisions []store.Revision
 	Busy      bool
@@ -76,7 +77,7 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	if _, err := s.store.CreateWorkload(name, nix.WorkloadTypeContainer, tmpl.Content); err != nil {
+	if _, err := s.store.CreateWorkload(name, nix.WorkloadTypeContainer, tmpl.Content, nix.FormatHostPorts(tmpl.Ports)); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -115,6 +116,7 @@ func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (worklo
 	if err != nil {
 		return data, err
 	}
+	data.Ports = nix.DecodeHostPorts(latest.Ports)
 	switch {
 	case !wl.AppliedRevisionID.Valid:
 		data.State = "draft"
@@ -151,11 +153,21 @@ func (s *Server) handleWorkloadSave(w http.ResponseWriter, r *http.Request) {
 	// disk or the parser.
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 
+	// Host ports arrive as parallel port/proto arrays, one pair per row.
+	// Unlike Nix content (drafts are allowed), a malformed port is a hard
+	// error since it feeds the host firewall directly — reject the whole
+	// save so content and ports stay in one atomic revision.
+	ports, err := nix.ParseHostPorts(r.Form["port"], r.Form["proto"])
+	if err != nil {
+		s.render(w, "workload", "save-result", map[string]string{"Error": err.Error()})
+		return
+	}
+
 	if err := s.flake.WriteWorkload(wl.Name, content); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	if _, err := s.store.SaveRevision(wl.ID, content, "edit"); err != nil {
+	if _, err := s.store.SaveRevision(wl.ID, content, nix.FormatHostPorts(ports), "edit"); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -262,7 +274,7 @@ func (s *Server) handleWorkloadRestore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	note := fmt.Sprintf("restore of #%d", revID)
-	if _, err := s.store.SaveRevision(wl.ID, target.Content, note); err != nil {
+	if _, err := s.store.SaveRevision(wl.ID, target.Content, target.Ports, note); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}

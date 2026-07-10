@@ -7,6 +7,7 @@
       <span class="badge">{{.Workload.Type}}</span>
       <span class="badge state-{{.State}}">{{.State}}</span>
       {{if .Workload.Enabled}}<span class="badge badge-on">enabled</span>{{else}}<span class="badge">disabled</span>{{end}}
+      {{if .Ports}}<span class="port-chips">{{range .Ports}}<span class="port-chip">:{{.Port}}{{if eq .Proto "udp"}}/udp{{end}}</span>{{end}}</span>{{end}}
     </h2>
     <div class="action-bar">
       {{if .Workload.Enabled}}
@@ -31,6 +32,37 @@
 
   <form hx-post="/workloads/{{.Workload.Name}}/save" hx-target="#save-result" hx-swap="innerHTML">
     <textarea name="content" class="editor" spellcheck="false" rows="18">{{.Content}}</textarea>
+
+    <div class="field">
+      <div class="field-head">
+        <span class="field-label">Host ports</span>
+        <span class="hint">Opened on the host firewall — for shared-network containers. Saved with the config.</span>
+      </div>
+      <div class="port-rows" id="host-ports">
+        {{range .Ports}}
+        <div class="port-row">
+          <input type="number" name="port" min="1" max="65535" value="{{.Port}}" placeholder="port">
+          <select name="proto">
+            <option value="tcp" {{if eq .Proto "tcp"}}selected{{end}}>tcp</option>
+            <option value="udp" {{if eq .Proto "udp"}}selected{{end}}>udp</option>
+          </select>
+          <button type="button" class="port-del" aria-label="Remove port">&times;</button>
+        </div>
+        {{end}}
+      </div>
+      <button type="button" class="port-add">+ Add port</button>
+    </div>
+    <template id="port-row-tpl">
+      <div class="port-row">
+        <input type="number" name="port" min="1" max="65535" placeholder="port">
+        <select name="proto">
+          <option value="tcp">tcp</option>
+          <option value="udp">udp</option>
+        </select>
+        <button type="button" class="port-del" aria-label="Remove port">&times;</button>
+      </div>
+    </template>
+
     <div class="form-actions">
       <button type="submit" class="primary">Save</button>
       <button type="button" hx-post="/workloads/{{.Workload.Name}}/validate"

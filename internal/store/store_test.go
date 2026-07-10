@@ -18,7 +18,7 @@ func open(t *testing.T) *Store {
 func TestWorkloadLifecycle(t *testing.T) {
 	s := open(t)
 
-	w, err := s.CreateWorkload("web", "nixos-container", "{ }\n")
+	w, err := s.CreateWorkload("web", "nixos-container", "{ }\n", "8080/tcp")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,15 +30,15 @@ func TestWorkloadLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if rev.Content != "{ }\n" || rev.Note != "created" {
+	if rev.Content != "{ }\n" || rev.Note != "created" || rev.Ports != "8080/tcp" {
 		t.Errorf("unexpected initial revision: %+v", rev)
 	}
 
-	if _, err := s.CreateWorkload("web", "nixos-container", ""); err == nil {
+	if _, err := s.CreateWorkload("web", "nixos-container", "", ""); err == nil {
 		t.Error("duplicate name should fail")
 	}
 
-	revID, err := s.SaveRevision(w.ID, "{ autoStart = true; }\n", "edit")
+	revID, err := s.SaveRevision(w.ID, "{ autoStart = true; }\n", "443/tcp", "edit")
 	if err != nil {
 		t.Fatal(err)
 	}

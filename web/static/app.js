@@ -54,35 +54,68 @@ function watchContainerLogs() {
 
 document.addEventListener("DOMContentLoaded", watchContainerLogs);
 
-// Apply and Dry build always rebuild from the last *saved* file, so
-// unsaved textarea edits would silently not be deployed. Disable those
-// buttons while the editor differs from the last save.
+// Host ports are edited as repeatable rows inside the save form. Add/
+// remove clone or drop a row; each structural change nudges the unsaved-
+// changes guard so Apply/Dry build stay disabled until the row is saved.
+function initPortEditor() {
+  const container = document.getElementById("host-ports");
+  if (!container) return;
+  const tpl = document.getElementById("port-row-tpl");
+  const form = container.closest("form");
+
+  function notify() {
+    form?.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  document.querySelector(".port-add")?.addEventListener("click", () => {
+    container.appendChild(tpl.content.cloneNode(true));
+    container.querySelector(".port-row:last-child input")?.focus();
+    notify();
+  });
+
+  container.addEventListener("click", (ev) => {
+    const del = ev.target.closest(".port-del");
+    if (!del) return;
+    del.closest(".port-row")?.remove();
+    notify();
+  });
+}
+
+document.addEventListener("DOMContentLoaded", initPortEditor);
+
+// Apply and Dry build always rebuild from the last *saved* file (and the
+// saved host ports), so unsaved edits would silently not be deployed.
+// Disable those buttons whenever the save form differs from its last
+// save. A form signature covers the editor textarea and every port row.
 function guardUnsavedEditor() {
   const ta = document.querySelector("textarea.editor");
-  if (!ta) return;
+  if (!ta || !ta.form) return;
+  const form = ta.form;
   const guarded = Array.from(document.querySelectorAll("[data-requires-saved]"))
     .map((btn) => ({ btn, wasDisabled: btn.disabled }));
-  let savedValue = ta.value;
+
+  const signature = () => new URLSearchParams(new FormData(form)).toString();
+  let savedValue = signature();
   let inflightValue = null;
 
   function refresh() {
-    const dirty = ta.value !== savedValue;
+    const dirty = signature() !== savedValue;
     for (const { btn, wasDisabled } of guarded) {
       btn.disabled = wasDisabled || dirty;
       btn.title = !wasDisabled && dirty ? "Unsaved changes — save first" : "";
     }
   }
 
-  ta.addEventListener("input", refresh);
+  form.addEventListener("input", refresh);
+  form.addEventListener("change", refresh);
 
   // A completed save makes the value sent (not the possibly newer
   // current one) the new baseline. Saves are issued by the form
   // itself; requests from buttons inside it (Dry build) don't count.
-  const form = ta.form;
-  form?.addEventListener("htmx:beforeRequest", (ev) => {
-    if (ev.detail.elt === form) inflightValue = ta.value;
+  form.addEventListener("htmx:beforeRequest", (ev) => {
+    if (ev.detail.elt === form) inflightValue = signature();
   });
-  form?.addEventListener("htmx:afterRequest", (ev) => {
+  form.addEventListener("htmx:afterRequest", (ev) => {
     if (ev.detail.elt === form && ev.detail.successful && inflightValue !== null) {
       savedValue = inflightValue;
       inflightValue = null;

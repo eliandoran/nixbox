@@ -125,9 +125,20 @@ func (s *Server) regenerateIndex() error {
 	}
 	var entries []nix.IndexEntry
 	for _, wl := range workloads {
-		if wl.Enabled {
-			entries = append(entries, nix.IndexEntry{Name: wl.Name, Type: wl.Type})
+		if !wl.Enabled {
+			continue
 		}
+		// Host ports live on the latest revision, mirroring how the
+		// workload.nix on disk is always the latest saved content.
+		rev, err := s.store.LatestRevision(wl.ID)
+		if err != nil {
+			return err
+		}
+		entries = append(entries, nix.IndexEntry{
+			Name:  wl.Name,
+			Type:  wl.Type,
+			Ports: nix.DecodeHostPorts(rev.Ports),
+		})
 	}
 	return s.flake.WriteIndex(entries)
 }

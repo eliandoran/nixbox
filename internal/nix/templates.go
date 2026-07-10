@@ -8,6 +8,7 @@ type Template struct {
 	Name        string
 	Description string
 	Content     string
+	Ports       []HostPort // host firewall ports to open by default
 }
 
 var Templates = []Template{
@@ -28,7 +29,7 @@ var Templates = []Template{
 	{
 		ID:          "nginx",
 		Name:        "Web server",
-		Description: "nginx on the host network, port 8080.",
+		Description: "nginx on the host network; nixbox opens port 8080 on the host firewall.",
 		Content: `{
   autoStart = true;
 
@@ -40,12 +41,14 @@ var Templates = []Template{
         root = pkgs.writeTextDir "index.html" "<h1>Hello from nixbox</h1>";
       };
     };
-    networking.firewall.allowedTCPPorts = [ 8080 ];
 
     system.stateVersion = "26.05";
   };
 }
 `,
+		// Shared host namespace: the port opens in the host firewall, which
+		// nixbox manages via the Host ports field rather than inside config.
+		Ports: []HostPort{{Port: 8080, Proto: "tcp"}},
 	},
 	{
 		ID:          "private-net",

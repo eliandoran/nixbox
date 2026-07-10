@@ -51,6 +51,7 @@ type Revision struct {
 	ID         int64
 	WorkloadID int64
 	Content    string
+	Ports      string // canonical host-port string, e.g. "8080/tcp 53/udp"
 	CreatedAt  time.Time
 	Note       string
 }
@@ -84,7 +85,7 @@ type Job struct {
 	Generation sql.NullInt64
 }
 
-func (s *Store) CreateWorkload(name, typ, content string) (*Workload, error) {
+func (s *Store) CreateWorkload(name, typ, content, ports string) (*Workload, error) {
 	now := time.Now().UTC()
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -103,8 +104,8 @@ func (s *Store) CreateWorkload(name, typ, content string) (*Workload, error) {
 		return nil, err
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO revisions (workload_id, content, created_at, note) VALUES (?, ?, ?, 'created')`,
-		id, content, now); err != nil {
+		`INSERT INTO revisions (workload_id, content, ports, created_at, note) VALUES (?, ?, ?, ?, 'created')`,
+		id, content, ports, now); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -155,8 +156,8 @@ func (s *Store) DeleteWorkload(id int64) error {
 	return err
 }
 
-// SaveRevision records a new content snapshot for a workload.
-func (s *Store) SaveRevision(workloadID int64, content, note string) (int64, error) {
+// SaveRevision records a new content + host-ports snapshot for a workload.
+func (s *Store) SaveRevision(workloadID int64, content, ports, note string) (int64, error) {
 	now := time.Now().UTC()
 	tx, err := s.db.Begin()
 	if err != nil {
@@ -164,8 +165,8 @@ func (s *Store) SaveRevision(workloadID int64, content, note string) (int64, err
 	}
 	defer tx.Rollback()
 	res, err := tx.Exec(
-		`INSERT INTO revisions (workload_id, content, created_at, note) VALUES (?, ?, ?, ?)`,
-		workloadID, content, now, note)
+		`INSERT INTO revisions (workload_id, content, ports, created_at, note) VALUES (?, ?, ?, ?, ?)`,
+		workloadID, content, ports, now, note)
 	if err != nil {
 		return 0, err
 	}
@@ -181,13 +182,13 @@ func (s *Store) SaveRevision(workloadID int64, content, note string) (int64, err
 
 func (s *Store) LatestRevision(workloadID int64) (*Revision, error) {
 	return scanRevision(s.db.QueryRow(
-		`SELECT id, workload_id, content, created_at, note FROM revisions
+		`SELECT id, workload_id, content, ports, created_at, note FROM revisions
 		 WHERE workload_id = ? ORDER BY id DESC LIMIT 1`, workloadID))
 }
 
 func (s *Store) Revisions(workloadID int64) ([]Revision, error) {
 	rows, err := s.db.Query(
-		`SELECT id, workload_id, content, created_at, note FROM revisions
+		`SELECT id, workload_id, content, ports, created_at, note FROM revisions
 		 WHERE workload_id = ? ORDER BY id DESC`, workloadID)
 	if err != nil {
 		return nil, err
@@ -307,7 +308,7 @@ func scanWorkload(r rowScanner) (*Workload, error) {
 
 func scanRevision(r rowScanner) (*Revision, error) {
 	var rev Revision
-	err := r.Scan(&rev.ID, &rev.WorkloadID, &rev.Content, &rev.CreatedAt, &rev.Note)
+	err := r.Scan(&rev.ID, &rev.WorkloadID, &rev.Content, &rev.Ports, &rev.CreatedAt, &rev.Note)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
