@@ -11,6 +11,20 @@
   --bad: light-dark(#c81e50, #f7768e);
   --warn: light-dark(#8a6100, #e0af68);
   --on-accent: light-dark(#ffffff, #10131a);
+
+  /* Nix editor syntax highlighting (CodeMirror). Tokyo-Night-derived,
+     paired for light/dark so the editor follows --data-theme with no JS. */
+  --syntax-keyword: light-dark(#5a3e8e, #bb9af7);
+  --syntax-def:     light-dark(#8a6100, #e0af68);
+  --syntax-string:  light-dark(#385f0d, #9ece6a);
+  --syntax-comment: light-dark(#8a90a0, #565f89);
+  --syntax-number:  light-dark(#965027, #ff9e64);
+  --syntax-name:    light-dark(#166775, #7dcfff);
+  --syntax-func:    var(--accent);
+  --syntax-punct:   var(--muted);
+  --syntax-escape:  light-dark(#c81e50, #f7768e);
+  /* Translucent so highlighted tokens stay legible under a selection. */
+  --syntax-selection: light-dark(rgba(55, 96, 191, 0.20), rgba(122, 162, 247, 0.24));
 }
 
 :root[data-theme="light"] { color-scheme: light; }

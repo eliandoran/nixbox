@@ -18,6 +18,12 @@ go build ./... && go vet ./... && go test ./...   # standard check
 go test ./internal/nix -run TestWriteIndex        # single test
 nix build .#nixbox                                # package (update vendorHash in nix/package.nix when go.mod changes)
 
+# CodeMirror Nix editor bundle — vendored build product, committed at
+# web/static/codemirror.js and embedded via //go:embed. Regenerate only
+# when the editor source or its deps change (needs nodejs + esbuild from
+# the devShell); npm is NOT part of go/nix build. Then commit the result.
+(cd web/editor && npm ci && npm run build)
+
 # Dev server — safe on any machine, full UI works:
 NIXBOX_DRY_RUN=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve
 # → http://127.0.0.1:8368 (NIXBOX_LISTEN=127.0.0.1:PORT to change)

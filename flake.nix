@@ -27,6 +27,9 @@
             gopls
             golangci-lint
             sqlite
+            # For regenerating web/static/codemirror.js (see web/editor).
+            nodejs
+            esbuild
           ];
         };
       });

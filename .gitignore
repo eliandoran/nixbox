@@ -3,3 +3,7 @@
 *.db
 /dev-state/
 *.qcow2
+*.fd
+
+# CodeMirror editor bundle deps (source under web/editor is not part of the build)
+web/editor/node_modules/

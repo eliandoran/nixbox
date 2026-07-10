@@ -8,7 +8,10 @@ buildGoModule {
     src = ../.;
     filter = path: type:
       let rel = lib.removePrefix (toString ../. + "/") (toString path);
-      in !(lib.hasPrefix "nix/" rel || lib.hasPrefix "dev-vm/" rel || rel == "flake.nix");
+      in !(lib.hasPrefix "nix/" rel || lib.hasPrefix "dev-vm/" rel || rel == "flake.nix"
+           # web/editor is the CodeMirror bundle *source* (npm); only its
+           # committed build product web/static/codemirror.js is embedded.
+           || lib.hasPrefix "web/editor/" rel);
   };
 
   vendorHash = "sha256-fqXpr9fV1jeT7503uAjb4jjNPlXfESFnXr7/Uc83d4o=";
