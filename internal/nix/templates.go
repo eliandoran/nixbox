@@ -1,8 +1,10 @@
 package nix
 
 // Template is a starting-point workload expression offered at creation
-// time. The content is the full containers.<name> attrset value, so
-// everything (networking, mounts, autoStart) stays in the user's hands.
+// time. Its shape is type-specific: for a nixos-container the content is
+// the full containers.<name> attrset value, so everything (networking,
+// mounts, autoStart) stays in the user's hands. Each WorkloadType carries
+// its own template set.
 type Template struct {
 	ID          string
 	Name        string
@@ -11,7 +13,9 @@ type Template struct {
 	Ports       []HostPort // host firewall ports to open by default
 }
 
-var Templates = []Template{
+// containerTemplates are offered when creating a nixos-container; the
+// nixos-container WorkloadType references this slice.
+var containerTemplates = []Template{
 	{
 		ID:          "blank",
 		Name:        "Blank",
@@ -71,8 +75,9 @@ var Templates = []Template{
 	},
 }
 
-func TemplateByID(id string) (Template, bool) {
-	for _, t := range Templates {
+// TemplateByID resolves one of this type's templates by ID.
+func (wt WorkloadType) TemplateByID(id string) (Template, bool) {
+	for _, t := range wt.Templates {
 		if t.ID == id {
 			return t, true
 		}

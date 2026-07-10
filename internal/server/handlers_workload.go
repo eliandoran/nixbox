@@ -37,9 +37,12 @@ type newWorkloadData struct {
 }
 
 func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
+	// Only nixos-container is offered at creation today; when a type
+	// selector arrives this reads the chosen type's descriptor instead.
+	wt := workloadType(nix.WorkloadTypeContainer)
 	s.renderPage(w, "workload_new", newWorkloadData{
 		baseData:  s.base(r, "New container", "dashboard"),
-		Templates: nix.Templates,
+		Templates: wt.Templates,
 	})
 }
 
@@ -47,19 +50,20 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	displayName := strings.TrimSpace(r.FormValue("display_name"))
 	tmplID := r.FormValue("template")
+	wt := workloadType(nix.WorkloadTypeContainer)
 
 	fail := func(msg string) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		s.renderPage(w, "workload_new", newWorkloadData{
 			baseData:    s.base(r, "New container", "dashboard"),
-			Templates:   nix.Templates,
+			Templates:   wt.Templates,
 			Error:       msg,
 			Name:        name,
 			DisplayName: displayName,
 		})
 	}
 
-	if err := nix.ValidateName(name); err != nil {
+	if err := wt.ValidateName(name); err != nil {
 		fail(err.Error())
 		return
 	}
@@ -67,7 +71,7 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 		fail(err.Error())
 		return
 	}
-	tmpl, ok := nix.TemplateByID(tmplID)
+	tmpl, ok := wt.TemplateByID(tmplID)
 	if !ok {
 		fail("unknown template")
 		return
@@ -84,7 +88,7 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	if _, err := s.store.CreateWorkload(name, displayName, nix.WorkloadTypeContainer, tmpl.Content, nix.FormatHostPorts(tmpl.Ports)); err != nil {
+	if _, err := s.store.CreateWorkload(name, displayName, wt.ID, tmpl.Content, nix.FormatHostPorts(tmpl.Ports)); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -133,7 +137,7 @@ func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (worklo
 		data.State = "applied"
 	}
 
-	if st, err := s.machines.Status(r.Context(), wl.Name); err == nil {
+	if st, err := s.machines.Status(r.Context(), workloadType(wl.Type), wl.Name); err == nil {
 		data.Running = st.Running()
 		data.Status = st.ActiveState + " (" + st.SubState + ")"
 	} else {
@@ -322,6 +326,7 @@ func (s *Server) handleWorkloadDestroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	deleteData := r.FormValue("delete_data") == "on"
+	wt := workloadType(wl.Type)
 
 	if err := s.store.SetWorkloadEnabled(wl.ID, false); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
@@ -335,7 +340,7 @@ func (s *Server) handleWorkloadDestroy(w http.ResponseWriter, r *http.Request) {
 	name, id := wl.Name, wl.ID
 	job, err := s.jobs.Start(store.JobApply, &wl.ID, func(ctx context.Context, log io.Writer) (jobs.Result, error) {
 		fmt.Fprintf(log, "==> destroying container %s\n", name)
-		if _, err := s.pipeline.Runner.Stream(ctx, log, "systemctl", "stop", "container@"+name+".service"); err != nil {
+		if _, err := s.pipeline.Runner.Stream(ctx, log, "systemctl", "stop", wt.UnitName(name)); err != nil {
 			fmt.Fprintf(log, "note: stop failed (container may not be running): %v\n", err)
 		}
 		code, gen, err := s.pipeline.Rebuild(ctx, log, nix.ModeSwitch)
@@ -349,9 +354,9 @@ func (s *Server) handleWorkloadDestroy(w http.ResponseWriter, r *http.Request) {
 		if err := s.flake.RemoveWorkload(name); err != nil {
 			return jobs.Result{ExitCode: -1, Generation: gen}, err
 		}
-		if deleteData {
+		if dataDir := wt.DataDir(name); deleteData && dataDir != "" {
 			fmt.Fprintf(log, "==> deleting container data\n")
-			if _, err := s.pipeline.Runner.Stream(ctx, log, "rm", "-rf", "--", "/var/lib/nixos-containers/"+name); err != nil {
+			if _, err := s.pipeline.Runner.Stream(ctx, log, "rm", "-rf", "--", dataDir); err != nil {
 				return jobs.Result{ExitCode: -1, Generation: gen}, err
 			}
 		}
@@ -374,14 +379,15 @@ func (s *Server) handleWorkloadLifecycle(w http.ResponseWriter, r *http.Request)
 	if !ok {
 		return
 	}
+	wt := workloadType(wl.Type)
 	var err error
 	switch r.PathValue("verb") {
 	case "start":
-		err = s.machines.Start(r.Context(), wl.Name)
+		err = s.machines.Start(r.Context(), wt, wl.Name)
 	case "stop":
-		err = s.machines.Stop(r.Context(), wl.Name)
+		err = s.machines.Stop(r.Context(), wt, wl.Name)
 	case "restart":
-		err = s.machines.Restart(r.Context(), wl.Name)
+		err = s.machines.Restart(r.Context(), wt, wl.Name)
 	default:
 		http.NotFound(w, r)
 		return
@@ -413,4 +419,15 @@ func (s *Server) lookupWorkload(w http.ResponseWriter, r *http.Request) (*store.
 
 func (s *Server) workloadFile(name string) string {
 	return s.cfg.WorkloadsDir() + "/" + name + "/workload.nix"
+}
+
+// workloadType resolves a stored type string to its descriptor, falling
+// back to the container type for an unrecognized value (e.g. a row left
+// by a newer build after a downgrade) so the UI keeps working.
+func workloadType(typ string) nix.WorkloadType {
+	if wt, ok := nix.Lookup(typ); ok {
+		return wt
+	}
+	wt, _ := nix.Lookup(nix.WorkloadTypeContainer)
+	return wt
 }
