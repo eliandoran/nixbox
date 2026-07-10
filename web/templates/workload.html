@@ -44,6 +44,19 @@
 </section>
 
 <section>
+  <div class="section-head">
+    <h2>Logs</h2>
+    <label class="checkbox hint">
+      <input type="checkbox" id="log-source-inside">
+      journal from inside the container
+    </label>
+  </div>
+  <div class="card log-card">
+    <pre class="log" id="container-log" data-name="{{.Workload.Name}}"></pre>
+  </div>
+</section>
+
+<section>
   <h2>Revisions</h2>
   {{if .Revisions}}
   <table class="jobs">

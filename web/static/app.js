@@ -27,6 +27,33 @@ function watchJob() {
 
 document.addEventListener("DOMContentLoaded", watchJob);
 
+// Container journal: follow the SSE journalctl stream into
+// #container-log; the checkbox switches between the host-side unit
+// journal and the journal from inside the container.
+function watchContainerLogs() {
+  const pre = document.getElementById("container-log");
+  if (!pre) return;
+  const toggle = document.getElementById("log-source-inside");
+  let es;
+
+  function connect() {
+    if (es) es.close();
+    pre.textContent = "";
+    const source = toggle?.checked ? "?source=container" : "";
+    es = new EventSource("/workloads/" + pre.dataset.name + "/logs" + source);
+    es.addEventListener("append", (ev) => {
+      const follow = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 40;
+      pre.textContent += ev.data + "\n";
+      if (follow) pre.scrollTop = pre.scrollHeight;
+    });
+  }
+
+  toggle?.addEventListener("change", connect);
+  connect();
+}
+
+document.addEventListener("DOMContentLoaded", watchContainerLogs);
+
 // Theme toggle: an explicit light/dark choice is stored in localStorage and
 // mirrored on <html data-theme>; with nothing stored, CSS follows the OS.
 document.addEventListener("click", (ev) => {

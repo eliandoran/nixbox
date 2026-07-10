@@ -75,6 +75,13 @@ State lives in `testhost.qcow2` in your working directory; delete it
 for a fresh machine. Console auto-login as root (password `nixbox`),
 headless via `QEMU_OPTS="-display none"`.
 
+**Shut the VM down gracefully** — run `poweroff` in the console (or
+send `system_powerdown` to a QEMU monitor). Killing QEMU or closing
+its window is a power cut: files written inside the guest (container
+state, the nix db) can be truncated to zeros, after which rebuilds and
+containers fail in confusing ways. If that happens, delete
+`testhost.qcow2` and start fresh.
+
 ## Configuration
 
 Set through the `services.nixbox` NixOS module (see `nix/module.nix`):

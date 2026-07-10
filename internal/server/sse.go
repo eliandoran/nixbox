@@ -1,6 +1,7 @@
 package server
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"net/http"
@@ -9,8 +10,49 @@ import (
 	"strings"
 	"time"
 
+	"github.com/elian/nixbox/internal/machine"
 	"github.com/elian/nixbox/internal/store"
 )
+
+// handleWorkloadLogs streams a container's journal over SSE by piping
+// a follow-mode journalctl. The process lives exactly as long as the
+// client connection: closing the browser tab cancels the request
+// context, which kills journalctl.
+func (s *Server) handleWorkloadLogs(w http.ResponseWriter, r *http.Request) {
+	wl, ok := s.lookupWorkload(w, r)
+	if !ok {
+		return
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+
+	inside := r.URL.Query().Get("source") == "container"
+	cmd := machine.JournalCommand(r.Context(), wl.Name, inside)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+	cmd.Stderr = cmd.Stdout // journalctl errors belong in the stream too
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(w, "event: append\ndata: cannot start journalctl: %v\n\n", err)
+		flusher.Flush()
+		return
+	}
+	defer cmd.Wait()
+
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		fmt.Fprintf(w, "event: append\ndata: %s\n\n", scanner.Text())
+		flusher.Flush()
+	}
+}
 
 // handleJobEvents streams a job's log over SSE by tailing its log file.
 // Events: "append" carries one log line; "done" carries the final

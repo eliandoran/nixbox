@@ -76,16 +76,17 @@ in
       RemainAfterExit = true;
     };
     script = ''
+      # Re-seed on every boot (not just the first): restarting the VM
+      # from a fresh `nix build .#vm` must repoint /etc/nixos at the
+      # new nixpkgs/nixbox store paths, or in-guest rebuilds would
+      # keep deploying the code the disk image was first booted with.
       mkdir -p /etc/nixos
-      if [ ! -f /etc/nixos/flake.nix ]; then
-        cp ${guestFlake} /etc/nixos/flake.nix
-        cp ${./configuration.nix} /etc/nixos/configuration.nix
-        chmod 644 /etc/nixos/flake.nix /etc/nixos/configuration.nix
-      fi
+      cp ${guestFlake} /etc/nixos/flake.nix
+      cp ${./configuration.nix} /etc/nixos/configuration.nix
+      chmod 644 /etc/nixos/flake.nix /etc/nixos/configuration.nix
       NIXBOX_STATE_DIR=/var/lib/nixbox ${lib.getExe config.services.nixbox.package} init
-      if [ ! -f /etc/nixos/flake.lock ]; then
-        nix flake lock /etc/nixos
-      fi
+      # Refreshes lock entries whose inputs changed; no-op otherwise.
+      nix flake lock /etc/nixos
     '';
   };
 
@@ -98,6 +99,16 @@ in
     memorySize = 4096;
     cores = 4;
     diskSize = 8192;
+    # Persist in-guest builds on the disk image. The default tmpfs
+    # overlay is wiped on shutdown while the nix db (on the root disk)
+    # is not, so a second boot would think derivations exist that are
+    # gone — breaking every rebuild after a VM restart.
+    writableStoreUseTmpfs = false;
+    # The guest /nix/store is served over 9p, whose per-op latency
+    # dominates rebuild time (eval and builds read thousands of small
+    # store files). Bump the 9p transfer size well above the 16 KiB
+    # default to cut round-trips.
+    msize = 262144;
     # Host port 18368 so a dry-run dev server on 8368 can keep running.
     # 18080 → 8080 exposes the nginx template container for testing.
     forwardPorts = [

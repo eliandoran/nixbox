@@ -5,6 +5,7 @@ package machine
 import (
 	"context"
 	"fmt"
+	"os/exec"
 	"strings"
 
 	"github.com/elian/nixbox/internal/run"
@@ -60,6 +61,21 @@ func (m *Manager) Stop(ctx context.Context, name string) error {
 
 func (m *Manager) Restart(ctx context.Context, name string) error {
 	return m.verb(ctx, "restart", name)
+}
+
+// JournalCommand builds a follow-mode journalctl invocation for a
+// container. inside switches from the host-side unit journal to the
+// journal written within the container (requires it to be running).
+// Reading journals is side-effect free, so this runs directly rather
+// than through the (possibly dry-run) Runner.
+func JournalCommand(ctx context.Context, name string, inside bool) *exec.Cmd {
+	args := []string{"--follow", "--lines=200", "--no-pager", "--output=short-iso"}
+	if inside {
+		args = append(args, "-M", name)
+	} else {
+		args = append(args, "-u", unit(name))
+	}
+	return exec.CommandContext(ctx, "journalctl", args...)
 }
 
 func (m *Manager) verb(ctx context.Context, verb, name string) error {

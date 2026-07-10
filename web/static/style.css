@@ -175,6 +175,12 @@ table.jobs th { color: var(--muted); font-weight: 500; font-size: 0.82rem; }
 }
 .log-head .status { margin-left: auto; }
 
+pre.log:empty::before {
+  content: "waiting for log output…";
+  color: var(--muted);
+  font-style: italic;
+}
+
 .narrow { max-width: 560px; }
 
 .form label { display: block; margin: 0.75rem 0 0.25rem; color: var(--muted); }
