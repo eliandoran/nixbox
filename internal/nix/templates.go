@@ -75,6 +75,41 @@ var containerTemplates = []Template{
 	},
 }
 
+// ociTemplates are offered when creating an oci-container; the
+// oci-container WorkloadType references this slice. The content is the
+// value of virtualisation.oci-containers.containers.<name> — a podman
+// container spec — so image/ports/volumes/environment stay in the user's
+// hands. Images are fully qualified because podman does not assume a
+// default registry.
+var ociTemplates = []Template{
+	{
+		ID:          "blank",
+		Name:        "Blank",
+		Description: "A single image kept running by a long-lived command.",
+		Content: `{
+  image = "docker.io/library/alpine:latest";
+  cmd = [ "sh" "-c" "while true; do sleep 3600; done" ];
+
+  # environment = { TZ = "UTC"; };
+  # volumes = [ "mydata:/data" ];
+}
+`,
+	},
+	{
+		ID:          "nginx",
+		Name:        "Web server",
+		Description: "nginx image publishing :8080 on the host; nixbox opens 8080 on the host firewall.",
+		Content: `{
+  image = "docker.io/library/nginx:stable";
+  # Publishes host 8080 -> container 80. Keep 8080 in Host ports below so
+  # the host firewall admits it.
+  ports = [ "8080:80" ];
+}
+`,
+		Ports: []HostPort{{Port: 8080, Proto: "tcp"}},
+	},
+}
+
 // TemplateByID resolves one of this type's templates by ID.
 func (wt WorkloadType) TemplateByID(id string) (Template, bool) {
 	for _, t := range wt.Templates {

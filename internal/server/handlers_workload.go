@@ -16,33 +16,48 @@ import (
 
 type workloadDetail struct {
 	baseData
-	Workload  *store.Workload
-	Content   string
-	Ports     []nix.HostPort // host firewall ports from the latest revision
-	State     string         // draft | pending | applied
-	Status    string         // systemd state, e.g. "active (running)"
-	Running   bool
-	Revisions []store.Revision
-	Busy      bool
-	Flash     string
-	Error     string
+	Workload              *store.Workload
+	Content               string
+	Ports                 []nix.HostPort // host firewall ports from the latest revision
+	State                 string         // draft | pending | applied
+	Status                string         // systemd state, e.g. "active (running)"
+	Running               bool
+	DataDir               string // data path deleted on destroy-with-data; "" if the type has none
+	SupportsInsideJournal bool
+	Revisions             []store.Revision
+	Busy                  bool
+	Flash                 string
+	Error                 string
 }
 
 type newWorkloadData struct {
 	baseData
-	Templates   []nix.Template
+	Types       []nix.WorkloadType // for the type picker
+	Selected    nix.WorkloadType   // currently selected type (drives fields)
+	Templates   []nix.Template     // Selected's templates
 	Error       string
 	Name        string
 	DisplayName string
 }
 
 func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
-	// Only nixos-container is offered at creation today; when a type
-	// selector arrives this reads the chosen type's descriptor instead.
-	wt := workloadType(nix.WorkloadTypeContainer)
+	sel := workloadType(nix.WorkloadTypeContainer) // default selection
 	s.renderPage(w, "workload_new", newWorkloadData{
-		baseData:  s.base(r, "New container", "dashboard"),
-		Templates: wt.Templates,
+		baseData:  s.base(r, "New workload", "dashboard"),
+		Types:     nix.RegisteredTypes(),
+		Selected:  sel,
+		Templates: sel.Templates,
+	})
+}
+
+// handleWorkloadFields renders the per-type portion of the create form
+// (ID constraints + template picker) for the selected type. The type
+// radios swap it in via HTMX so the fields track the chosen type.
+func (s *Server) handleWorkloadFields(w http.ResponseWriter, r *http.Request) {
+	sel := workloadType(r.URL.Query().Get("type"))
+	s.render(w, "workload_new", "workload-type-fields", newWorkloadData{
+		Selected:  sel,
+		Templates: sel.Templates,
 	})
 }
 
@@ -50,12 +65,17 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimSpace(r.FormValue("name"))
 	displayName := strings.TrimSpace(r.FormValue("display_name"))
 	tmplID := r.FormValue("template")
-	wt := workloadType(nix.WorkloadTypeContainer)
+	wt, typeOK := nix.Lookup(r.FormValue("type"))
+	if !typeOK {
+		wt = workloadType(nix.WorkloadTypeContainer) // for a coherent re-render
+	}
 
 	fail := func(msg string) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		s.renderPage(w, "workload_new", newWorkloadData{
-			baseData:    s.base(r, "New container", "dashboard"),
+			baseData:    s.base(r, "New workload", "dashboard"),
+			Types:       nix.RegisteredTypes(),
+			Selected:    wt,
 			Templates:   wt.Templates,
 			Error:       msg,
 			Name:        name,
@@ -63,6 +83,10 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	if !typeOK {
+		fail("unknown workload type")
+		return
+	}
 	if err := wt.ValidateName(name); err != nil {
 		fail(err.Error())
 		return
@@ -110,10 +134,13 @@ func (s *Server) handleWorkloadDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (workloadDetail, error) {
+	wt := workloadType(wl.Type)
 	data := workloadDetail{
-		baseData: s.base(r, wl.Display(), "dashboard"),
-		Workload: wl,
-		Busy:     s.jobs.Busy(),
+		baseData:              s.base(r, wl.Display(), "dashboard"),
+		Workload:              wl,
+		Busy:                  s.jobs.Busy(),
+		DataDir:               wt.DataDir(wl.Name),
+		SupportsInsideJournal: wt.SupportsInsideJournal,
 	}
 	data.Active = wl.Name // sidebar highlight matches on the ID
 
@@ -137,7 +164,7 @@ func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (worklo
 		data.State = "applied"
 	}
 
-	if st, err := s.machines.Status(r.Context(), workloadType(wl.Type), wl.Name); err == nil {
+	if st, err := s.machines.Status(r.Context(), wt, wl.Name); err == nil {
 		data.Running = st.Running()
 		data.Status = st.ActiveState + " (" + st.SubState + ")"
 	} else {

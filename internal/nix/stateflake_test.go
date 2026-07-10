@@ -3,6 +3,7 @@ package nix
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -27,6 +28,8 @@ func TestInitIdempotent(t *testing.T) {
   containers = {
     web = ./workloads/web/workload.nix;
   };
+  ociContainers = {
+  };
   hostPorts = {
     tcp = [ ];
     udp = [ ];
@@ -46,7 +49,8 @@ func TestWriteIndex(t *testing.T) {
 	entries := []IndexEntry{
 		{Name: "zeta", Type: WorkloadTypeContainer},
 		{Name: "alpha", Type: WorkloadTypeContainer},
-		{Name: "future", Type: "oci-container"}, // not yet supported: excluded
+		{Name: "web", Type: WorkloadTypeOCI}, // OCI: its own section
+		{Name: "ghost", Type: "microvm"},     // unregistered: excluded
 	}
 	if err := f.WriteIndex(entries); err != nil {
 		t.Fatal(err)
@@ -60,6 +64,9 @@ func TestWriteIndex(t *testing.T) {
   containers = {
     alpha = ./workloads/alpha/workload.nix;
     zeta = ./workloads/zeta/workload.nix;
+  };
+  ociContainers = {
+    web = ./workloads/web/workload.nix;
   };
   hostPorts = {
     tcp = [ ];
@@ -84,8 +91,11 @@ func TestWriteIndexHostPorts(t *testing.T) {
 		{Name: "dns", Type: WorkloadTypeContainer, Ports: []HostPort{
 			{Port: 53, Proto: "udp"}, {Port: 443, Proto: "tcp"}, // 443 dup across workloads
 		}},
-		{Name: "future", Type: "oci-container", Ports: []HostPort{
-			{Port: 9999, Proto: "tcp"}, // unsupported type: excluded entirely
+		{Name: "app", Type: WorkloadTypeOCI, Ports: []HostPort{
+			{Port: 9999, Proto: "tcp"}, // OCI publishes a host port: unioned in
+		}},
+		{Name: "ghost", Type: "microvm", Ports: []HostPort{
+			{Port: 1234, Proto: "tcp"}, // unregistered type: excluded entirely
 		}},
 	}
 	if err := f.WriteIndex(entries); err != nil {
@@ -101,8 +111,11 @@ func TestWriteIndexHostPorts(t *testing.T) {
     dns = ./workloads/dns/workload.nix;
     web = ./workloads/web/workload.nix;
   };
+  ociContainers = {
+    app = ./workloads/app/workload.nix;
+  };
   hostPorts = {
-    tcp = [ 443 8080 ];
+    tcp = [ 443 8080 9999 ];
     udp = [ 53 ];
   };
 }
@@ -137,8 +150,12 @@ func TestWorkloadRoundTrip(t *testing.T) {
 }
 
 func TestValidateName(t *testing.T) {
-	valid := []string{"web", "db-1", "a", "abcdefghijk"}
-	invalid := []string{"", "-web", "web-", "Web", "web_1", "abcdefghijkl", "a/b", "../etc"}
+	// Shared path-safety rule: charset + no leading/trailing dash, up to
+	// 63 chars. Longer names (an OCI container may use them) are fine here;
+	// the 11-char nspawn cap is a per-type concern, tested separately.
+	long63 := strings.Repeat("a", 63)
+	valid := []string{"web", "db-1", "a", "abcdefghijk", "abcdefghijkl", long63}
+	invalid := []string{"", "-web", "web-", "Web", "web_1", long63 + "a", "a/b", "../etc"}
 	for _, n := range valid {
 		if err := ValidateName(n); err != nil {
 			t.Errorf("ValidateName(%q) = %v, want nil", n, err)
@@ -148,5 +165,29 @@ func TestValidateName(t *testing.T) {
 		if err := ValidateName(n); err == nil {
 			t.Errorf("ValidateName(%q) = nil, want error", n)
 		}
+	}
+}
+
+// TestContainerNameLimit covers the nixos-container-specific 11-char cap
+// layered on top of the shared rule via the type's ValidateName.
+func TestContainerNameLimit(t *testing.T) {
+	wt, ok := Lookup(WorkloadTypeContainer)
+	if !ok {
+		t.Fatal("nixos-container type not registered")
+	}
+	if err := wt.ValidateName("abcdefghijk"); err != nil { // 11 chars: ok
+		t.Errorf("ValidateName(11 chars) = %v, want nil", err)
+	}
+	if err := wt.ValidateName("abcdefghijkl"); err == nil { // 12 chars: too long
+		t.Error("ValidateName(12 chars) = nil, want error")
+	}
+
+	// The OCI type accepts the longer name the container type rejects.
+	oci, ok := Lookup(WorkloadTypeOCI)
+	if !ok {
+		t.Fatal("oci-container type not registered")
+	}
+	if err := oci.ValidateName("abcdefghijkl"); err != nil {
+		t.Errorf("OCI ValidateName(12 chars) = %v, want nil", err)
 	}
 }

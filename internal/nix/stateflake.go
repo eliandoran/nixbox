@@ -17,10 +17,13 @@ import (
 	"strings"
 )
 
-// WorkloadTypeContainer is the built-in workload type: a NixOS
-// declarative container. Additional types (oci-container, microvm) are
-// added by registering a WorkloadType (see types.go) — no branch here.
-const WorkloadTypeContainer = "nixos-container"
+// Workload type IDs stored in workloads.type. Each corresponds to a
+// registered WorkloadType (see types.go); adding another kind (microvm, …)
+// is a new const plus its Register call — no branch here.
+const (
+	WorkloadTypeContainer = "nixos-container"
+	WorkloadTypeOCI       = "oci-container"
+)
 
 // The flake output is fixed boilerplate; the actual module set lives in
 // the generated modules/default.nix, so adding a workload type never
@@ -229,21 +232,17 @@ func (f *StateFlake) RemoveWorkload(name string) error {
 	return os.RemoveAll(filepath.Join(f.Dir, "workloads", name))
 }
 
-// nameRe: systemd-nspawn creates a "ve-<name>" host interface for
-// private networking; interface names cap at 15 bytes, leaving 11 for
-// the container name. Same limit NixOS enforces on containers.<name>.
-//
-// ValidateName doubles as the filesystem/path-safety check used wherever
-// a name reaches disk (WriteWorkload, ReadWorkload, lookupWorkload), so it
-// stays strict enough to be safe for any type. The nixos-container type
-// also uses it as its type-specific WorkloadType.ValidateName; a future
-// type with a looser naming rule would split the two — relax the shared
-// path check to charset-only and enforce length in the per-type func.
-var nameRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,9}[a-z0-9])?$`)
+// nameRe is the shared filesystem/path-safety rule enforced wherever a
+// name reaches disk (WriteWorkload, ReadWorkload, lookupWorkload): lower
+// DNS-label charset, no leading/trailing dash, 1-63 bytes. It stays
+// permissive enough for any workload type; tighter, type-specific limits
+// (e.g. the 11-char nspawn interface cap for nixos-containers) live in the
+// per-type WorkloadType.ValidateName, layered on top of this check.
+var nameRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
 func ValidateName(name string) error {
 	if !nameRe.MatchString(name) {
-		return fmt.Errorf("invalid workload name %q: must be 1-11 characters of [a-z0-9-], not starting or ending with -", name)
+		return fmt.Errorf("invalid workload name %q: must be 1-63 characters of [a-z0-9-], not starting or ending with -", name)
 	}
 	return nil
 }

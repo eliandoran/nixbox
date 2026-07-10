@@ -46,7 +46,7 @@
     <div class="field">
       <div class="field-head">
         <span class="field-label">Host ports</span>
-        <span class="hint">Opened on the host firewall — for shared-network containers. Saved with the config.</span>
+        <span class="hint">Opened on the host firewall for ports this workload publishes on the host. Saved with the config.</span>
       </div>
       <div class="port-rows" id="host-ports">
         {{range .Ports}}
@@ -88,10 +88,12 @@
 <section>
   <div class="section-head">
     <h2>Logs</h2>
+    {{if .SupportsInsideJournal}}
     <label class="checkbox hint">
       <input type="checkbox" id="log-source-inside">
       journal from inside the container
     </label>
+    {{end}}
   </div>
   <div class="card log-card">
     <pre class="log" id="container-log" data-name="{{.Workload.Name}}"></pre>
@@ -154,16 +156,23 @@
     <h2>Destroy container</h2>
     <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
   </div>
+  {{if .DataDir}}
   <p class="hint">Disables the container and rebuilds the system without it.
-  The container's data under <code>/var/lib/nixos-containers/{{.Workload.Name}}</code>
+  The container's data under <code>{{.DataDir}}</code>
   is kept unless you check the box below.</p>
+  {{else}}
+  <p class="hint">Disables the workload and rebuilds the system without it.
+  Any data held by the container backend (e.g. podman volumes) is left untouched.</p>
+  {{end}}
   <form hx-post="/workloads/{{.Workload.Name}}/destroy" hx-target="#job-panel" hx-swap="innerHTML"
         data-close-on-success>
     <label for="confirm">Type <strong>{{.Workload.Name}}</strong> to confirm</label>
     <input type="text" id="confirm" name="confirm" autocomplete="off">
+    {{if .DataDir}}
     <label class="checkbox">
       <input type="checkbox" name="delete_data"> Also delete container data
     </label>
+    {{end}}
     <div class="form-actions">
       <button type="button" data-close-dialog>Cancel</button>
       <button class="danger" {{if .Busy}}disabled{{end}}>Destroy</button>

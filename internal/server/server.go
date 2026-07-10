@@ -54,6 +54,7 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
 	s.mux.HandleFunc("GET /partials/workloads", s.handleWorkloadList)
 	s.mux.HandleFunc("GET /workloads/new", s.handleWorkloadNew)
+	s.mux.HandleFunc("GET /partials/workload-fields", s.handleWorkloadFields)
 	s.mux.HandleFunc("POST /workloads", s.handleWorkloadCreate)
 	s.mux.HandleFunc("GET /workloads/{name}", s.handleWorkloadDetail)
 	s.mux.HandleFunc("GET /workloads/{name}/logs", s.handleWorkloadLogs)

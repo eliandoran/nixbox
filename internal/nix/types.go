@@ -1,5 +1,7 @@
 package nix
 
+import "fmt"
+
 // WorkloadType is the single source of truth for everything that varies
 // between kinds of workload: how a workload is exposed to the system
 // flake, which systemd unit backs it, how its logs are read, and which
@@ -35,6 +37,18 @@ type WorkloadType struct {
 	// filesystem/path safety that ValidateName already guarantees — e.g.
 	// the 11-char nspawn interface limit for nixos-containers.
 	ValidateName func(name string) error
+	// NamePattern (HTML pattern attribute, unanchored), NameMaxLen, and
+	// NameHint drive the ID field on the create form so its client-side
+	// constraints and help text match ValidateName.
+	NamePattern string
+	NameMaxLen  int
+	NameHint    string
+
+	// SupportsInsideJournal reports whether the type has a distinct
+	// in-workload journal (a nixos-container does, via machinectl -M; an
+	// OCI container logs only to its host unit). Drives the "journal from
+	// inside" toggle on the detail page.
+	SupportsInsideJournal bool
 
 	// UnitName maps a workload name to the systemd unit that backs it.
 	UnitName func(name string) string
@@ -96,16 +110,52 @@ in
 }
 `
 
+// ociContainerModule maps this type's index section into
+// virtualisation.oci-containers.containers.<name>. nixbox pins the podman
+// backend so container logs land in the host journal
+// (journalctl -u podman-<name>), matching how every other workload's logs
+// are streamed; mkDefault lets the host override it. The upstream module
+// contributes nothing when containers is empty, so podman is only pulled
+// in once an OCI workload exists. `or { }` keeps it evaluating against an
+// index generated before this type existed.
+const ociContainerModule = `{ lib, ... }:
+
+let
+  index = import ../index.nix;
+in
+{
+  virtualisation.oci-containers.backend = lib.mkDefault "podman";
+  virtualisation.oci-containers.containers =
+    lib.mapAttrs (name: path: import path) (index.ociContainers or { });
+}
+`
+
+// validateContainerName layers the nixos-container-specific 11-char nspawn
+// interface limit on top of the shared path-safety check.
+func validateContainerName(name string) error {
+	if err := ValidateName(name); err != nil {
+		return err
+	}
+	if len(name) > 11 {
+		return fmt.Errorf("invalid container name %q: nixos-containers are limited to 11 characters (systemd-nspawn ve-<name> interface limit)", name)
+	}
+	return nil
+}
+
 func init() {
 	Register(WorkloadType{
-		ID:           WorkloadTypeContainer,
-		Label:        "NixOS containers",
-		IndexKey:     "containers",
-		ModuleFile:   "modules/nixos-container.nix",
-		Module:       nixosContainerModule,
-		Templates:    containerTemplates,
-		ValidateName: ValidateName,
-		UnitName:     func(name string) string { return "container@" + name + ".service" },
+		ID:                    WorkloadTypeContainer,
+		Label:                 "NixOS containers",
+		IndexKey:              "containers",
+		ModuleFile:            "modules/nixos-container.nix",
+		Module:                nixosContainerModule,
+		Templates:             containerTemplates,
+		ValidateName:          validateContainerName,
+		NamePattern:           `[a-z0-9]([a-z0-9-]{0,9}[a-z0-9])?`,
+		NameMaxLen:            11,
+		NameHint:              "1–11 characters of a-z 0-9 - (systemd-nspawn network interface limit). Used in URLs, on disk, and as the container's systemd identity — can't be changed later.",
+		SupportsInsideJournal: true,
+		UnitName:              func(name string) string { return "container@" + name + ".service" },
 		JournalArgs: func(name string, inside bool) []string {
 			if inside {
 				// machinectl -M reads the journal from within the
@@ -115,5 +165,29 @@ func init() {
 			return []string{"-u", "container@" + name + ".service"}
 		},
 		DataDir: func(name string) string { return "/var/lib/nixos-containers/" + name },
+	})
+
+	Register(WorkloadType{
+		ID:           WorkloadTypeOCI,
+		Label:        "OCI containers",
+		IndexKey:     "ociContainers",
+		ModuleFile:   "modules/oci-container.nix",
+		Module:       ociContainerModule,
+		Templates:    ociTemplates,
+		ValidateName: ValidateName, // shared rule (1-63) is the OCI rule
+		NamePattern:  `[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?`,
+		NameMaxLen:   63,
+		NameHint:     "1–63 characters of a-z 0-9 -. Used in URLs, on disk, and as the podman container and unit name — can't be changed later.",
+		// An OCI container runs one process and logs to its host unit; it
+		// has no in-container journald to read.
+		SupportsInsideJournal: false,
+		UnitName:              func(name string) string { return "podman-" + name + ".service" },
+		JournalArgs: func(name string, _ bool) []string {
+			return []string{"-u", "podman-" + name + ".service"}
+		},
+		// podman keeps container storage in its own graph/volumes, not a
+		// per-workload directory nixbox can safely rm -rf; destroy leaves
+		// it to the backend.
+		DataDir: func(string) string { return "" },
 	})
 }
