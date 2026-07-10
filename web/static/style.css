@@ -30,6 +30,22 @@
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
+/* Seamless page navigation: opt every same-origin full-page load into a
+   cross-document view transition. The topbar and sidebar are identical
+   across pages, so the browser's snapshot cross-fade reads as only the
+   <main> content changing — no white blink between e.g. Dashboard and
+   System. Browsers without support just navigate as before. */
+@view-transition { navigation: auto; }
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 120ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition { navigation: none; }
+}
+
 * { box-sizing: border-box; }
 
 body {
