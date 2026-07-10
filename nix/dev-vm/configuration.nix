@@ -29,6 +29,14 @@ let
             # The rebuilt system must keep the VM's 9p store mounts,
             # or switch-to-configuration tries to stop them mid-switch.
             "''${nixpkgs}/nixos/modules/virtualisation/qemu-vm.nix"
+            # Keep in sync with vmVariant below: mount options shape the
+            # built system's fstab, and the guest rebuild evaluates
+            # qemu-vm.nix directly, without vmVariant. A 9p msize
+            # mismatch would make switch-to-configuration remount the
+            # store mid-switch.
+            {
+              virtualisation.msize = 262144;
+            }
             nixbox.nixosModules.nixbox
             nixbox-state.nixosModules.default
           ];
@@ -40,8 +48,13 @@ in
 {
   networking.hostName = "testhost";
 
-  # The VM boots directly from the kernel; in-guest `nixos-rebuild
-  # switch` must not try to install a bootloader.
+  # The VM boots directly from the kernel baked into the run script;
+  # in-guest `nixos-rebuild switch` must not try to install a
+  # bootloader. Consequence: every VM start boots the image's initial
+  # system, so containers need one Apply to come back up. (A
+  # systemd-boot setup was tried and reverted: generations built
+  # inside the guest fail stage-1 "Find NixOS closure" on the 9p
+  # overlay store.)
   boot.loader.grub.enable = false;
   fileSystems."/" = lib.mkDefault { device = "/dev/vda"; fsType = "ext4"; };
 
@@ -50,9 +63,10 @@ in
   # the VM's overlayed 9p store; dev VM only, so build unsandboxed.
   nix.settings.sandbox = false;
 
-  # Containers without privateNetwork share the VM's network namespace,
-  # so ports they serve must be opened in the VM's own firewall.
-  networking.firewall.allowedTCPPorts = [ 8080 ];
+  # The nginx template's 8080 is opened by nixbox itself (its Host ports
+  # field feeds the generated state module's firewall), so the dev VM
+  # dogfoods that path instead of hardcoding the port here. Shared-network
+  # containers with no Host ports declared are unreachable until one is.
 
   services.nixbox = {
     enable = true;
@@ -98,7 +112,7 @@ in
   virtualisation.vmVariant.virtualisation = {
     memorySize = 4096;
     cores = 4;
-    diskSize = 8192;
+    diskSize = 12288;
     # Persist in-guest builds on the disk image. The default tmpfs
     # overlay is wiped on shutdown while the nix db (on the root disk)
     # is not, so a second boot would think derivations exist that are
