@@ -128,6 +128,30 @@ function guardUnsavedEditor() {
 
 document.addEventListener("DOMContentLoaded", guardUnsavedEditor);
 
+// Native <dialog> modals: [data-open-dialog="id"] opens that dialog,
+// [data-close-dialog] closes the enclosing one, and a form marked
+// [data-close-on-success] closes its dialog after a successful submit
+// (e.g. destroy hands off to the job panel underneath).
+document.addEventListener("click", (ev) => {
+  if (!(ev.target instanceof Element)) return;
+
+  const opener = ev.target.closest("[data-open-dialog]");
+  if (opener) {
+    const dlg = document.getElementById(opener.dataset.openDialog);
+    if (dlg instanceof HTMLDialogElement) dlg.showModal();
+    return;
+  }
+
+  const closer = ev.target.closest("[data-close-dialog]");
+  if (closer) closer.closest("dialog")?.close();
+});
+
+document.addEventListener("htmx:afterRequest", (ev) => {
+  const form = ev.target;
+  if (!(form instanceof Element) || !form.matches("[data-close-on-success]")) return;
+  if (ev.detail.successful) form.closest("dialog")?.close();
+});
+
 // Theme toggle: an explicit light/dark choice is stored in localStorage and
 // mirrored on <html data-theme>; with nothing stored, CSS follows the OS.
 document.addEventListener("click", (ev) => {

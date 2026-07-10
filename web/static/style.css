@@ -362,18 +362,53 @@ textarea.editor:focus { outline: none; border-color: var(--accent); }
 }
 .rev-content summary { cursor: pointer; color: var(--accent); }
 
-.danger-zone { border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); margin-top: 2rem; }
-.danger-zone input[type="text"] {
+dialog.modal {
+  width: min(30rem, calc(100vw - 2rem));
+  padding: 1.25rem 1.5rem 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--border));
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
+}
+dialog.modal::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+}
+dialog.modal[open] { animation: modal-in 0.14s ease-out; }
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.modal-head h2 { margin: 0; }
+.modal-close {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  padding: 0.1rem 0.4rem;
+}
+.modal-close:hover { color: var(--text); background: var(--surface-2); }
+dialog.modal input[type="text"] {
   font: inherit;
   display: block;
+  width: 100%;
   padding: 0.4rem 0.6rem;
   background: var(--bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
-  margin: 0.25rem 0 0.5rem;
+  margin: 0.25rem 0 0.75rem;
 }
-.danger-zone label { color: var(--muted); }
+dialog.modal label { color: var(--muted); }
 .checkbox { display: flex; align-items: center; gap: 0.5rem; }
 button.danger { border-color: var(--bad); color: var(--bad); }
 button.danger:hover { background: var(--bad); color: var(--on-accent); }

@@ -116,22 +116,31 @@
   {{end}}
 </section>
 
-<section class="danger-zone card">
-  <h2>Destroy container</h2>
+<section>
+  <button type="button" class="danger" data-open-dialog="destroy-dialog" {{if .Busy}}disabled{{end}}>Destroy container</button>
+</section>
+
+<dialog id="destroy-dialog" class="modal">
+  <div class="modal-head">
+    <h2>Destroy container</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
+  </div>
   <p class="hint">Disables the container and rebuilds the system without it.
   The container's data under <code>/var/lib/nixos-containers/{{.Workload.Name}}</code>
   is kept unless you check the box below.</p>
-  <form hx-post="/workloads/{{.Workload.Name}}/destroy" hx-target="#job-panel" hx-swap="innerHTML">
+  <form hx-post="/workloads/{{.Workload.Name}}/destroy" hx-target="#job-panel" hx-swap="innerHTML"
+        data-close-on-success>
     <label for="confirm">Type <strong>{{.Workload.Name}}</strong> to confirm</label>
     <input type="text" id="confirm" name="confirm" autocomplete="off">
     <label class="checkbox">
       <input type="checkbox" name="delete_data"> Also delete container data
     </label>
     <div class="form-actions">
+      <button type="button" data-close-dialog>Cancel</button>
       <button class="danger" {{if .Busy}}disabled{{end}}>Destroy</button>
     </div>
   </form>
-</section>
+</dialog>
 {{end}}
 
 {{define "save-result"}}
