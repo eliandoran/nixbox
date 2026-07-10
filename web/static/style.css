@@ -285,6 +285,21 @@ table.jobs th { color: var(--muted); font-weight: 500; font-size: 0.82rem; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* Compact per-container usage tiles on the workload page. */
+.stat-row { display: flex; gap: 0.75rem; margin: 0.5rem 0 1rem; flex-wrap: wrap; }
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 110px;
+  padding: 0.5rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.stat-label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.stat-value { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
+
 table.metrics-table td { font-variant-numeric: tabular-nums; }
 table.metrics-table tbody tr[data-href] { cursor: pointer; }
 table.metrics-table tbody tr[data-href]:hover { background: var(--surface-2); }
@@ -362,6 +377,19 @@ pre.log:empty::before {
 .action-bar form { margin: 0; }
 
 .section-head h2 { display: flex; align-items: center; gap: 0.5rem; }
+
+/* Inline pencil next to the workload name; stays quiet until hovered. */
+.rename-btn {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  color: var(--muted);
+  padding: 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.rename-btn:hover { color: var(--text); background: var(--surface-2); }
 
 textarea.editor {
   width: 100%;

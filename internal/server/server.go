@@ -62,6 +62,7 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.HandleFunc("POST /workloads/{name}/enable", s.handleWorkloadEnable)
 	s.mux.HandleFunc("POST /workloads/{name}/disable", s.handleWorkloadDisable)
 	s.mux.HandleFunc("POST /workloads/{name}/apply", s.handleWorkloadApply)
+	s.mux.HandleFunc("POST /workloads/{name}/rename", s.handleWorkloadRename)
 	s.mux.HandleFunc("POST /workloads/{name}/destroy", s.handleWorkloadDestroy)
 	s.mux.HandleFunc("POST /workloads/{name}/revisions/{id}/restore", s.handleWorkloadRestore)
 	s.mux.HandleFunc("POST /workloads/{name}/{verb}", s.handleWorkloadLifecycle)

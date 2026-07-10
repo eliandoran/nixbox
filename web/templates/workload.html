@@ -4,6 +4,9 @@
     <h2>
       <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
       {{.Workload.Display}}
+      <button type="button" class="rename-btn" data-open-dialog="rename-dialog" aria-label="Rename" title="Rename">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </button>
       {{if .Workload.DisplayName}}<span class="badge" title="container ID"><code>{{.Workload.Name}}</code></span>{{end}}
       <span class="badge">{{.Workload.Type}}</span>
       <span class="badge state-{{.State}}">{{.State}}</span>
@@ -28,6 +31,12 @@
     </div>
   </div>
   <p class="hint">systemd: {{.Status}}</p>
+
+  <div class="stat-row" id="workload-metrics" data-name="{{.Workload.Name}}">
+    <div class="stat"><span class="stat-label">CPU</span><span class="stat-value" id="wm-cpu">—</span></div>
+    <div class="stat"><span class="stat-label">Memory</span><span class="stat-value" id="wm-mem">—</span></div>
+    <div class="stat"><span class="stat-label">Tasks</span><span class="stat-value" id="wm-tasks">—</span></div>
+  </div>
 
   {{if .Flash}}<div class="banner banner-ok">{{.Flash}}</div>{{end}}
 
@@ -120,6 +129,25 @@
 <section>
   <button type="button" class="danger" data-open-dialog="destroy-dialog" {{if .Busy}}disabled{{end}}>Destroy container</button>
 </section>
+
+<dialog id="rename-dialog" class="modal">
+  <div class="modal-head">
+    <h2>Rename</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
+  </div>
+  <p class="hint">A friendly label for the UI. The container ID
+  <code>{{.Workload.Name}}</code> is permanent and unaffected. Leave blank to
+  just show the ID. Applies immediately — no rebuild.</p>
+  <form method="post" action="/workloads/{{.Workload.Name}}/rename">
+    <label for="display_name">Display name</label>
+    <input type="text" id="display_name" name="display_name" value="{{.Workload.DisplayName}}"
+           maxlength="60" autocomplete="off">
+    <div class="form-actions">
+      <button type="button" data-close-dialog>Cancel</button>
+      <button class="primary">Save</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="destroy-dialog" class="modal">
   <div class="modal-head">

@@ -161,6 +161,15 @@ func (s *Store) SetWorkloadEnabled(id int64, enabled bool) error {
 	return err
 }
 
+// SetWorkloadDisplayName updates the optional friendly label. An empty
+// string clears it (the UI then falls back to the ID). This is metadata
+// only — it never touches the Nix state, so no rebuild is needed.
+func (s *Store) SetWorkloadDisplayName(id int64, displayName string) error {
+	_, err := s.db.Exec(`UPDATE workloads SET display_name = ?, updated_at = ? WHERE id = ?`,
+		displayName, time.Now().UTC(), id)
+	return err
+}
+
 func (s *Store) DeleteWorkload(id int64) error {
 	_, err := s.db.Exec(`DELETE FROM workloads WHERE id = ?`, id)
 	return err

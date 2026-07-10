@@ -227,6 +227,26 @@ func (s *Server) setEnabled(w http.ResponseWriter, r *http.Request, enabled bool
 	http.Redirect(w, r, "/workloads/"+wl.Name+"?flash="+flash, http.StatusSeeOther)
 }
 
+// handleWorkloadRename sets the optional friendly display name. Metadata
+// only — no rebuild — so it redirects straight back with a flash. An
+// empty value clears the label and the UI falls back to the ID.
+func (s *Server) handleWorkloadRename(w http.ResponseWriter, r *http.Request) {
+	wl, ok := s.lookupWorkload(w, r)
+	if !ok {
+		return
+	}
+	displayName := strings.TrimSpace(r.FormValue("display_name"))
+	if err := nix.ValidateDisplayName(displayName); err != nil {
+		http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+		return
+	}
+	if err := s.store.SetWorkloadDisplayName(wl.ID, displayName); err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/workloads/"+wl.Name+"?flash=Renamed.", http.StatusSeeOther)
+}
+
 // handleWorkloadApply rebuilds the system (attributed to this workload
 // in job history) and returns the live log fragment.
 func (s *Server) handleWorkloadApply(w http.ResponseWriter, r *http.Request) {
