@@ -37,5 +37,60 @@
   <p class="empty">No jobs yet.</p>
   {{end}}
 </section>
+
+<section>
+  <div class="section-head">
+    <h2>Power</h2>
+  </div>
+  <p class="hint">Reboot or shut down the host running nixbox.
+  {{if .DryRun}}Dry-run mode: these buttons run through the flow but do not touch the machine.{{end}}</p>
+  <div class="form-actions">
+    <button type="button" data-open-dialog="reboot-dialog" {{if .Busy}}disabled{{end}}>Restart</button>
+    <button type="button" class="danger" data-open-dialog="poweroff-dialog" {{if .Busy}}disabled{{end}}>Shut down</button>
+  </div>
+  <div id="power-result"></div>
+</section>
+
+<dialog id="reboot-dialog" class="modal">
+  <div class="modal-head">
+    <h2>Restart host</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
+  </div>
+  <p class="hint">Reboots the machine. nixbox and every container go down until
+  it comes back up.</p>
+  <form hx-post="/system/reboot" hx-target="#power-result" hx-swap="innerHTML" data-close-on-success>
+    <div class="form-actions">
+      <button type="button" data-close-dialog>Cancel</button>
+      <button class="primary" {{if .Busy}}disabled{{end}}>Restart now</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="poweroff-dialog" class="modal">
+  <div class="modal-head">
+    <h2>Shut down host</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
+  </div>
+  <p class="hint">Powers the machine off. It stays down until something turns it
+  back on — on a headless server that means physical or out-of-band access.</p>
+  <form hx-post="/system/poweroff" hx-target="#power-result" hx-swap="innerHTML" data-close-on-success>
+    <div class="form-actions">
+      <button type="button" data-close-dialog>Cancel</button>
+      <button class="danger" {{if .Busy}}disabled{{end}}>Shut down now</button>
+    </div>
+  </form>
+</dialog>
+{{end}}
+
+{{define "power-result"}}
+<div class="banner banner-ok">
+  {{- if .DryRun}}
+  Dry-run: would {{if eq .Action "reboot"}}reboot{{else}}shut down{{end}} the machine — nothing happened.
+  {{- else if eq .Action "reboot"}}
+  Rebooting… the machine will disconnect shortly.
+  {{- else}}
+  Shutting down… the machine will power off shortly.
+  {{- end}}
+</div>
 {{end}}
 

@@ -55,6 +55,45 @@ func (s *Server) handleRebuild(w http.ResponseWriter, r *http.Request) {
 	s.render(w, "system", "job-log", job)
 }
 
+// powerResult drives the fragment shown after a reboot/poweroff request.
+type powerResult struct {
+	Action string // "reboot" or "shutdown"
+	DryRun bool
+}
+
+func (s *Server) handleReboot(w http.ResponseWriter, r *http.Request) {
+	s.handlePower(w, r, "reboot")
+}
+
+func (s *Server) handlePoweroff(w http.ResponseWriter, r *http.Request) {
+	s.handlePower(w, r, "shutdown")
+}
+
+// handlePower reboots or shuts down the host. It refuses while a job is
+// running (a power cut mid-rebuild risks a half-applied generation) and,
+// in dry-run mode, does nothing but still returns the confirmation
+// fragment so the flow can be exercised without taking the machine down.
+func (s *Server) handlePower(w http.ResponseWriter, r *http.Request, action string) {
+	if s.jobs.Busy() {
+		http.Error(w, "a job is already running", http.StatusConflict)
+		return
+	}
+	if !s.cfg.DryRun {
+		var err error
+		switch action {
+		case "reboot":
+			err = s.machines.Reboot(r.Context())
+		case "shutdown":
+			err = s.machines.Poweroff(r.Context())
+		}
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+	}
+	s.render(w, "system", "power-result", powerResult{Action: action, DryRun: s.cfg.DryRun})
+}
+
 // startApply regenerates the index and launches a rebuild job. On a
 // successful switch it records which revision of each enabled workload
 // is now live. workloadID only attributes the job in history; a

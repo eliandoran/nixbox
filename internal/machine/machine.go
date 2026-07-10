@@ -63,6 +63,24 @@ func (m *Manager) Restart(ctx context.Context, name string) error {
 	return m.verb(ctx, "restart", name)
 }
 
+// Reboot restarts the host. systemctl queues the job and returns
+// immediately, so the caller can still send a response before the
+// machine goes down.
+func (m *Manager) Reboot(ctx context.Context) error {
+	if _, err := m.Runner.Output(ctx, "systemctl", "reboot"); err != nil {
+		return fmt.Errorf("systemctl reboot: %w", err)
+	}
+	return nil
+}
+
+// Poweroff shuts the host down. Same fire-and-return behaviour as Reboot.
+func (m *Manager) Poweroff(ctx context.Context) error {
+	if _, err := m.Runner.Output(ctx, "systemctl", "poweroff"); err != nil {
+		return fmt.Errorf("systemctl poweroff: %w", err)
+	}
+	return nil
+}
+
 // JournalCommand builds a follow-mode journalctl invocation for a
 // container. inside switches from the host-side unit journal to the
 // journal written within the container (requires it to be running).

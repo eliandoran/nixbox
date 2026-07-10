@@ -66,6 +66,8 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.HandleFunc("POST /workloads/{name}/{verb}", s.handleWorkloadLifecycle)
 	s.mux.HandleFunc("GET /system", s.handleSystem)
 	s.mux.HandleFunc("POST /system/rebuild", s.handleRebuild)
+	s.mux.HandleFunc("POST /system/reboot", s.handleReboot)
+	s.mux.HandleFunc("POST /system/poweroff", s.handlePoweroff)
 	s.mux.HandleFunc("GET /system/jobs/{id}/log", s.handleJobLogFragment)
 	s.mux.HandleFunc("GET /events/jobs/{id}", s.handleJobEvents)
 
