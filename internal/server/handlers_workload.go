@@ -84,7 +84,7 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	if _, err := s.store.CreateWorkload(name, nix.WorkloadTypeContainer, tmpl.Content, nix.FormatHostPorts(tmpl.Ports)); err != nil {
+	if _, err := s.store.CreateWorkload(name, displayName, nix.WorkloadTypeContainer, tmpl.Content, nix.FormatHostPorts(tmpl.Ports)); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -107,11 +107,11 @@ func (s *Server) handleWorkloadDetail(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (workloadDetail, error) {
 	data := workloadDetail{
-		baseData: s.base(r, wl.Name, "dashboard"),
+		baseData: s.base(r, wl.Display(), "dashboard"),
 		Workload: wl,
 		Busy:     s.jobs.Busy(),
 	}
-	data.Active = wl.Name
+	data.Active = wl.Name // sidebar highlight matches on the ID
 
 	content, err := s.flake.ReadWorkload(wl.Name)
 	if err != nil {

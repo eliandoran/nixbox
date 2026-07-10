@@ -3,7 +3,8 @@
   <div class="section-head">
     <h2>
       <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
-      {{.Workload.Name}}
+      {{.Workload.Display}}
+      {{if .Workload.DisplayName}}<span class="badge" title="container ID"><code>{{.Workload.Name}}</code></span>{{end}}
       <span class="badge">{{.Workload.Type}}</span>
       <span class="badge state-{{.State}}">{{.State}}</span>
       {{if .Workload.Enabled}}<span class="badge badge-on">enabled</span>{{else}}<span class="badge">disabled</span>{{end}}

@@ -18,12 +18,15 @@ func open(t *testing.T) *Store {
 func TestWorkloadLifecycle(t *testing.T) {
 	s := open(t)
 
-	w, err := s.CreateWorkload("web", "nixos-container", "{ }\n", "8080/tcp")
+	w, err := s.CreateWorkload("web", "My Web Server", "nixos-container", "{ }\n", "8080/tcp")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if w.Enabled {
 		t.Error("new workload should start disabled")
+	}
+	if w.DisplayName != "My Web Server" || w.Display() != "My Web Server" {
+		t.Errorf("display name not persisted: %q", w.DisplayName)
 	}
 
 	rev, err := s.LatestRevision(w.ID)
@@ -34,7 +37,7 @@ func TestWorkloadLifecycle(t *testing.T) {
 		t.Errorf("unexpected initial revision: %+v", rev)
 	}
 
-	if _, err := s.CreateWorkload("web", "nixos-container", "", ""); err == nil {
+	if _, err := s.CreateWorkload("web", "", "nixos-container", "", ""); err == nil {
 		t.Error("duplicate name should fail")
 	}
 

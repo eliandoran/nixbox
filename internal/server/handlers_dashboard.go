@@ -16,7 +16,8 @@ type hostInfo struct {
 }
 
 type workloadView struct {
-	Name    string
+	Name    string // ID: used in the item href and active-highlight match
+	Display string // friendly label shown to the user (falls back to Name)
 	Type    string
 	Running bool
 	State   string
@@ -86,7 +87,7 @@ func (s *Server) workloadViews(r *http.Request) ([]workloadView, error) {
 	}
 	views := make([]workloadView, 0, len(workloads))
 	for _, wl := range workloads {
-		v := workloadView{Name: wl.Name, Type: wl.Type}
+		v := workloadView{Name: wl.Name, Display: wl.Display(), Type: wl.Type}
 		switch {
 		case !wl.Enabled:
 			v.State = "disabled"

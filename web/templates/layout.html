@@ -51,7 +51,7 @@
     {{range .Workloads}}
     <a class="workload-item{{if eq .Name $.Active}} active{{end}}" href="/workloads/{{.Name}}">
       <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
-      <span class="workload-name">{{.Name}}</span>
+      <span class="workload-name">{{.Display}}</span>
     </a>
     {{end}}
   </div>
