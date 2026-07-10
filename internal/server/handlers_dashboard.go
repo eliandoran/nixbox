@@ -104,6 +104,22 @@ func (s *Server) workloadViews(r *http.Request) ([]workloadView, error) {
 	return views, nil
 }
 
+// enabledWorkloadNames lists the names of enabled workloads, in stored
+// order — the set the metrics stream samples resource usage for.
+func (s *Server) enabledWorkloadNames() ([]string, error) {
+	workloads, err := s.store.Workloads()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(workloads))
+	for _, wl := range workloads {
+		if wl.Enabled {
+			names = append(names, wl.Name)
+		}
+	}
+	return names, nil
+}
+
 func (s *Server) hostInfo() hostInfo {
 	info := hostInfo{StateDir: s.cfg.StateDir}
 	info.Hostname, _ = os.Hostname()

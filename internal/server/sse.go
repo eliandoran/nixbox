@@ -2,6 +2,7 @@ package server
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/elian/nixbox/internal/machine"
+	"github.com/elian/nixbox/internal/metrics"
 	"github.com/elian/nixbox/internal/store"
 )
 
@@ -51,6 +53,120 @@ func (s *Server) handleWorkloadLogs(w http.ResponseWriter, r *http.Request) {
 	for scanner.Scan() {
 		fmt.Fprintf(w, "event: append\ndata: %s\n\n", scanner.Text())
 		flusher.Flush()
+	}
+}
+
+// metricsSample is the JSON payload pushed on each metrics tick. CPU
+// percentages are pointers because they are undefined on the first
+// sample (there is no prior reading to diff against) and render as "—".
+type metricsSample struct {
+	Host       hostMetrics        `json:"host"`
+	Containers []containerMetrics `json:"containers"`
+}
+
+type hostMetrics struct {
+	Load1     float64  `json:"load1"`
+	Load5     float64  `json:"load5"`
+	Load15    float64  `json:"load15"`
+	CPUPct    *float64 `json:"cpuPct"`
+	MemUsed   uint64   `json:"memUsed"`
+	MemTotal  uint64   `json:"memTotal"`
+	DiskUsed  uint64   `json:"diskUsed"`
+	DiskTotal uint64   `json:"diskTotal"`
+}
+
+type containerMetrics struct {
+	Name     string   `json:"name"`
+	Running  bool     `json:"running"`
+	CPUPct   *float64 `json:"cpuPct"`
+	MemBytes uint64   `json:"memBytes"`
+	Tasks    uint64   `json:"tasks"`
+}
+
+// handleMetrics streams host and per-container resource usage over SSE.
+// Each tick reads systemd's accounting and /proc, diffs the cumulative
+// CPU counters against the previous tick to derive live percentages, and
+// pushes one "sample" JSON event. Per-connection state (the previous
+// counters) lives on the stack, so no shared locking is needed.
+func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+
+	// The Nix store is what fills up on a NixOS box; fall back to root
+	// where it isn't a distinct path (e.g. the dev machine).
+	diskPath := "/nix"
+	if _, err := os.Stat(diskPath); err != nil {
+		diskPath = "/"
+	}
+
+	var (
+		prevTime  time.Time
+		prevBusy  uint64
+		prevTotal uint64
+		prevCPU   = map[string]uint64{}
+		havePrev  bool
+		ticker    = time.NewTicker(2 * time.Second)
+	)
+	defer ticker.Stop()
+
+	for {
+		now := time.Now()
+		host := metrics.Sample(diskPath)
+
+		names, err := s.enabledWorkloadNames()
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		usages, _ := s.machines.Usages(r.Context(), names) // absent → zeroed below
+
+		sample := metricsSample{Host: hostMetrics{
+			Load1: host.Load1, Load5: host.Load5, Load15: host.Load15,
+			MemUsed: host.MemUsed, MemTotal: host.MemTotal,
+			DiskUsed: host.DiskUsed, DiskTotal: host.DiskTotal,
+		}}
+
+		wallNS := now.Sub(prevTime).Nanoseconds()
+		if havePrev && host.CPUTotal > prevTotal {
+			pct := float64(host.CPUBusy-prevBusy) / float64(host.CPUTotal-prevTotal) * 100
+			sample.Host.CPUPct = &pct
+		}
+
+		curCPU := make(map[string]uint64, len(names))
+		for _, name := range names {
+			u := usages[name]
+			curCPU[name] = u.CPUNSec
+			cm := containerMetrics{
+				Name: name, Running: u.Running,
+				MemBytes: u.MemBytes, Tasks: u.Tasks,
+			}
+			if prev, ok := prevCPU[name]; havePrev && ok && wallNS > 0 && u.CPUNSec >= prev {
+				pct := float64(u.CPUNSec-prev) / float64(wallNS) * 100
+				cm.CPUPct = &pct
+			}
+			sample.Containers = append(sample.Containers, cm)
+		}
+
+		buf, err := json.Marshal(sample)
+		if err != nil {
+			httpError(w, err, http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, "event: sample\ndata: %s\n\n", buf)
+		flusher.Flush()
+
+		prevTime, prevBusy, prevTotal, prevCPU, havePrev = now, host.CPUBusy, host.CPUTotal, curCPU, true
+
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+		}
 	}
 }
 

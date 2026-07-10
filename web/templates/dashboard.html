@@ -9,5 +9,36 @@
       <dt>State dir</dt><dd><code>{{.Host.StateDir}}</code></dd>
     </dl>
   </div>
+  <div class="card metrics-card" id="host-metrics">
+    <h2>Load</h2>
+    <dl>
+      <dt>Load avg</dt><dd id="m-load">—</dd>
+      <dt>CPU</dt>
+      <dd>
+        <div class="meter"><span id="m-cpu-bar"></span></div>
+        <span class="meter-label" id="m-cpu">—</span>
+      </dd>
+      <dt>Memory</dt>
+      <dd>
+        <div class="meter"><span id="m-mem-bar"></span></div>
+        <span class="meter-label" id="m-mem">—</span>
+      </dd>
+      <dt>Store disk</dt>
+      <dd>
+        <div class="meter"><span id="m-disk-bar"></span></div>
+        <span class="meter-label" id="m-disk">—</span>
+      </dd>
+    </dl>
+  </div>
 </section>
+
+<div class="section-head"><h2>Container usage</h2></div>
+<table class="jobs metrics-table">
+  <thead>
+    <tr><th>Container</th><th>CPU</th><th>Memory</th><th>Tasks</th></tr>
+  </thead>
+  <tbody id="container-metrics">
+    <tr class="metrics-empty"><td colspan="4" class="empty">waiting for samples…</td></tr>
+  </tbody>
+</table>
 {{end}}

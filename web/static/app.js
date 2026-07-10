@@ -54,6 +54,71 @@ function watchContainerLogs() {
 
 document.addEventListener("DOMContentLoaded", watchContainerLogs);
 
+// Live host + container metrics: the dashboard's #host-metrics card and
+// #container-metrics table are fed by an SSE stream that pushes one JSON
+// "sample" every couple of seconds. CPU percentages are null until the
+// stream has two samples to diff, and render as an em dash.
+function watchMetrics() {
+  const host = document.getElementById("host-metrics");
+  const rows = document.getElementById("container-metrics");
+  if (!host || !rows) return;
+
+  const fmtBytes = (n) => {
+    if (!n) return "0 B";
+    const u = ["B", "KiB", "MiB", "GiB", "TiB", "PiB"];
+    let i = 0;
+    while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+    return (i === 0 ? n : n.toFixed(1)) + " " + u[i];
+  };
+  const pct = (v) => (v == null ? "—" : v.toFixed(0) + "%");
+  const setBar = (id, v) => {
+    const bar = document.getElementById(id);
+    if (bar) bar.style.width = Math.min(100, Math.max(0, v || 0)) + "%";
+  };
+  const ratio = (used, total) => (total ? (used / total) * 100 : 0);
+
+  const es = new EventSource("/events/metrics");
+  es.addEventListener("sample", (ev) => {
+    const s = JSON.parse(ev.data);
+    const h = s.host;
+
+    document.getElementById("m-load").textContent =
+      `${h.load1.toFixed(2)} · ${h.load5.toFixed(2)} · ${h.load15.toFixed(2)}`;
+    document.getElementById("m-cpu").textContent = pct(h.cpuPct);
+    setBar("m-cpu-bar", h.cpuPct);
+    document.getElementById("m-mem").textContent =
+      `${fmtBytes(h.memUsed)} / ${fmtBytes(h.memTotal)}`;
+    setBar("m-mem-bar", ratio(h.memUsed, h.memTotal));
+    document.getElementById("m-disk").textContent =
+      `${fmtBytes(h.diskUsed)} / ${fmtBytes(h.diskTotal)}`;
+    setBar("m-disk-bar", ratio(h.diskUsed, h.diskTotal));
+
+    if (!s.containers || !s.containers.length) {
+      rows.innerHTML =
+        '<tr class="metrics-empty"><td colspan="4" class="empty">No enabled containers.</td></tr>';
+      return;
+    }
+    rows.replaceChildren(...s.containers.map((c) => {
+      const tr = document.createElement("tr");
+      const cell = (text) => {
+        const td = document.createElement("td");
+        td.textContent = text;
+        return td;
+      };
+      const name = document.createElement("td");
+      const dot = document.createElement("span");
+      dot.className = "dot " + (c.running ? "dot-on" : "dot-off");
+      name.append(dot, " ", c.name);
+      tr.append(name, cell(pct(c.cpuPct)), cell(fmtBytes(c.memBytes)),
+                cell(c.running ? String(c.tasks) : "—"));
+      return tr;
+    }));
+  });
+  es.onerror = () => {};
+}
+
+document.addEventListener("DOMContentLoaded", watchMetrics);
+
 // Host ports are edited as repeatable rows inside the save form. Add/
 // remove clone or drop a row; each structural change nudges the unsaved-
 // changes guard so Apply/Dry build stay disabled until the row is saved.
