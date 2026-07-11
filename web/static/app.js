@@ -360,19 +360,24 @@ document.addEventListener("htmx:beforeSwap", (ev) => {
 // shared #confirm-dialog instead of the browser's confirm(). Submitting is
 // held until the user confirms, then the same form is resubmitted (the
 // data-confirmed flag lets that second submit through). Cancel does nothing.
+//
+// Registered in the capture phase and stopping propagation so it also gates
+// hx-post forms: htmx's own submit handler sits on the form (target phase),
+// which capture runs ahead of — otherwise the request would fire unconfirmed.
 let pendingConfirm = null;
 document.addEventListener("submit", (ev) => {
   const form = ev.target;
   if (!(form instanceof HTMLFormElement) || !form.dataset.confirm) return;
   if (form.dataset.confirmed) {
     delete form.dataset.confirmed;
-    return; // already confirmed — let this submit proceed
+    return; // already confirmed — let this submit proceed to htmx / navigation
   }
   ev.preventDefault();
+  ev.stopPropagation();
   pendingConfirm = form;
   document.getElementById("confirm-message").textContent = form.dataset.confirm;
   document.getElementById("confirm-dialog").showModal();
-});
+}, true);
 
 document.addEventListener("click", (ev) => {
   if (!(ev.target instanceof Element) || !ev.target.closest("[data-confirm-ok]")) return;

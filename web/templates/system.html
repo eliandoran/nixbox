@@ -45,39 +45,17 @@
   <p class="hint">{{T "sys.power-hint"}}
   {{if .DryRun}}{{T "sys.power-dry-hint"}}{{end}}</p>
   <div class="form-actions">
-    <button type="button" data-open-dialog="reboot-dialog" {{if .Busy}}disabled{{end}}>{{T "common.restart"}}</button>
-    <button type="button" class="danger" data-open-dialog="poweroff-dialog" {{if .Busy}}disabled{{end}}>{{T "sys.shutdown"}}</button>
+    <form hx-post="/system/reboot" hx-target="#power-result" hx-swap="innerHTML"
+          data-confirm="{{T "sys.reboot-hint"}}">
+      <button {{if .Busy}}disabled{{end}}>{{T "common.restart"}}</button>
+    </form>
+    <form hx-post="/system/poweroff" hx-target="#power-result" hx-swap="innerHTML"
+          data-confirm="{{T "sys.poweroff-hint"}}">
+      <button class="danger" {{if .Busy}}disabled{{end}}>{{T "sys.shutdown"}}</button>
+    </form>
   </div>
   <div id="power-result"></div>
 </section>
-
-<dialog id="reboot-dialog" class="modal modal-danger">
-  <div class="modal-head">
-    <h2>{{T "sys.reboot-title"}}</h2>
-    <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
-  </div>
-  <p class="hint">{{T "sys.reboot-hint"}}</p>
-  <form hx-post="/system/reboot" hx-target="#power-result" hx-swap="innerHTML" data-close-on-success>
-    <div class="form-actions">
-      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
-      <button class="primary" {{if .Busy}}disabled{{end}}>{{T "sys.restart-now"}}</button>
-    </div>
-  </form>
-</dialog>
-
-<dialog id="poweroff-dialog" class="modal modal-danger">
-  <div class="modal-head">
-    <h2>{{T "sys.poweroff-title"}}</h2>
-    <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
-  </div>
-  <p class="hint">{{T "sys.poweroff-hint"}}</p>
-  <form hx-post="/system/poweroff" hx-target="#power-result" hx-swap="innerHTML" data-close-on-success>
-    <div class="form-actions">
-      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
-      <button class="danger" {{if .Busy}}disabled{{end}}>{{T "sys.shutdown-now"}}</button>
-    </div>
-  </form>
-</dialog>
 {{end}}
 
 {{define "power-result"}}
