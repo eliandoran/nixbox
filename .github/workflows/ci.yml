@@ -19,38 +19,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
+      - uses: cachix/install-nix-action@v31
         with:
-          go-version-file: go.mod
-          cache: true
+          extra_nix_config: |
+            experimental-features = nix-command flakes
 
-      # The PAM auth backend is cgo and needs libpam's headers to compile
-      # (build/vet/test all fail without them, same as the devShell note).
-      # Also point the real-PAM tests at the system pam_permit/pam_deny
-      # modules — located dynamically so a multiarch path change can't
-      # silently downgrade them to a skip — mirroring NIXBOX_PAM_TEST_MODULES
-      # from the devShell.
-      - name: install libpam (cgo PAM backend)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libpam0g-dev
-          echo "NIXBOX_PAM_TEST_MODULES=$(dirname "$(dpkg -L libpam-modules | grep -m1 /pam_permit.so)")" >> "$GITHUB_ENV"
+      # Run the Go checks inside the devShell: it already carries the go
+      # toolchain, esbuild, libpam (the PAM backend is cgo) and
+      # NIXBOX_PAM_TEST_MODULES for the real-PAM tests — so CI needs no
+      # ubuntu-specific apt/npx setup maintained alongside the nix build.
 
-      # web/static/app.js is a gitignored esbuild product, so a fresh
-      # checkout lacks it and the go:embed in web/embed.go fails to build.
-      # Bundle it first, same invocation as `just bundle` / the nix preBuild.
-      # esbuild is pinned to the ^0.24.0 the web/editor bundle uses.
+      # web/static/app.js is a gitignored esbuild product; bundle it first
+      # (same `just bundle` invocation as the nix preBuild) or the go:embed
+      # in web/embed.go has no match.
       - name: bundle web assets
-        run: npx --yes esbuild@0.24 web/src/main.ts --bundle --format=iife --outfile=web/static/app.js
+        run: nix develop --command just bundle
 
       - name: build
-        run: go build ./...
+        run: nix develop --command go build ./...
 
       - name: vet
-        run: go vet ./...
+        run: nix develop --command go vet ./...
 
       - name: test
-        run: go test ./...
+        run: nix develop --command go test ./...
 
   nix:
     name: package (nix build .#nixbox)
