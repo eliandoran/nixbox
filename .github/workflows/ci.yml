@@ -37,6 +37,20 @@ jobs:
           purge-created: 0
           purge-primary-key: never
 
+      # cache-nix-action only covers /nix/store; the devShell's live
+      # `go build`/`go test` still downloads modules into GOMODCACHE and
+      # writes GOCACHE. Cache both (default ~/go/pkg/mod + ~/.cache/go-build)
+      # keyed on go.sum, prefix-restored so the build cache survives dep
+      # bumps. (The package job's Go deps are already the vendored FOD in
+      # /nix/store, so it needs none of this.)
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+
       # Run the Go checks inside the devShell: it already carries the go
       # toolchain, esbuild, libpam (the PAM backend is cgo) and
       # NIXBOX_PAM_TEST_MODULES for the real-PAM tests — so CI needs no
