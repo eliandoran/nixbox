@@ -53,6 +53,8 @@
     {{end}}
     <button type="button" role="tab" class="tab" id="tab-revisions" data-tab="revisions"
             aria-controls="panel-revisions" aria-selected="false" tabindex="-1">Revisions</button>
+    <button type="button" role="tab" class="tab tab-end" id="tab-manage" data-tab="manage"
+            aria-controls="panel-manage" aria-selected="false" tabindex="-1">Manage</button>
   </div>
 
   <section class="tabpanel" id="panel-config" role="tabpanel" aria-labelledby="tab-config" tabindex="0">
@@ -104,15 +106,14 @@
   </section>
 
   <section class="tabpanel" id="panel-logs" role="tabpanel" aria-labelledby="tab-logs" tabindex="0" hidden>
-  <div class="section-head">
-    <h2>Logs</h2>
-    {{if .SupportsInsideJournal}}
+  {{if .SupportsInsideJournal}}
+  <div class="panel-toolbar end">
     <label class="checkbox hint">
       <input type="checkbox" id="log-source-inside">
       journal from inside the container
     </label>
-    {{end}}
   </div>
+  {{end}}
   <div class="card log-card">
     <pre class="log" id="container-log" data-name="{{.Workload.Name}}"></pre>
   </div>
@@ -120,13 +121,12 @@
 
   {{if and .TerminalEnabled .HasShell}}
   <section class="tabpanel" id="panel-terminal" role="tabpanel" aria-labelledby="tab-terminal" tabindex="0" hidden>
-  <div class="section-head">
-    <h2>Terminal</h2>
+  <div class="panel-toolbar">
     <button type="button" class="primary" id="wl-terminal-btn" data-terminal-open="wl-terminal"
             {{if not .Running}}disabled title="The container must be running first."{{end}}>Open shell</button>
+    <span class="hint">Opens an interactive shell inside <code>{{.Workload.Name}}</code>.
+    {{if not .Running}}The container must be running first.{{end}}</span>
   </div>
-  <p class="hint">Opens an interactive shell inside <code>{{.Workload.Name}}</code>.
-  {{if not .Running}}The container must be running first.{{end}}</p>
   <link rel="stylesheet" href="/static/xterm.css">
   <div id="wl-terminal" class="terminal terminal-inline"
        data-terminal-ws="/events/workloads/{{.Workload.Name}}/terminal" hidden></div>
@@ -135,7 +135,6 @@
   {{end}}
 
   <section class="tabpanel" id="panel-revisions" role="tabpanel" aria-labelledby="tab-revisions" tabindex="0" hidden>
-  <h2>Revisions</h2>
   {{if .Revisions}}
   <table class="jobs">
     <thead><tr><th>#</th><th>Saved</th><th>Note</th><th></th><th></th></tr></thead>
@@ -159,16 +158,19 @@
       {{end}}
     </tbody>
   </table>
+  {{else}}
+  <p class="hint">No revisions yet.</p>
   {{end}}
   </section>
-</div>
 
-<section class="danger-zone">
-  <h2>Danger zone</h2>
-  <p class="hint">Removing this workload disables it, rebuilds the system without it, then
-  deletes it and its history. This cannot be undone.</p>
-  <button type="button" class="danger" data-open-dialog="destroy-dialog" {{if .Busy}}disabled{{end}}>Destroy container</button>
-</section>
+  <section class="tabpanel" id="panel-manage" role="tabpanel" aria-labelledby="tab-manage" tabindex="0" hidden>
+  <div class="danger-zone">
+    <p class="hint">Removing this workload disables it, rebuilds the system without it, then
+    deletes it and its history. This cannot be undone.</p>
+    <button type="button" class="danger" data-open-dialog="destroy-dialog" {{if .Busy}}disabled{{end}}>Destroy container</button>
+  </div>
+  </section>
+</div>
 
 <dialog id="rename-dialog" class="modal">
   <div class="modal-head">
