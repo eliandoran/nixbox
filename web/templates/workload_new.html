@@ -42,7 +42,7 @@
     </div>
 
     <label>{{T "wl.type"}}</label>
-    <div class="template-picker">
+    <div class="template-picker two-col">
       {{range .Types}}
       <label class="template-option">
         <input type="radio" name="type" value="{{.ID}}" {{if eq .ID $.Selected.ID}}checked{{end}}

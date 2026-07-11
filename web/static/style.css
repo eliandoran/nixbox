@@ -376,17 +376,31 @@ pre.log:empty::before {
 @media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
 
 .template-picker { display: grid; gap: 0.5rem; }
-.template-option {
-  display: flex;
-  gap: 0.75rem;
-  align-items: flex-start;
+.template-picker.two-col { grid-template-columns: 1fr 1fr; }
+@media (max-width: 480px) { .template-picker.two-col { grid-template-columns: 1fr; } }
+/* label.template-option outranks the `.form label` field-label rule, whose
+   vertical margins would otherwise stack on top of the picker's grid gap. */
+label.template-option {
+  position: relative;
+  display: block;
+  margin: 0;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
 }
 .template-option:has(input:checked) { border-color: var(--accent); background: var(--surface-2); }
-.template-option input { margin-top: 0.3rem; }
+/* The radio itself is hidden — the card's checked highlight carries the
+   state — but stays in the tree for label clicks and arrow-key cycling;
+   keyboard focus is echoed as a ring on the card. */
+.template-option input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+.template-option:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
 .template-option p { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.85rem; }
 
 .form-actions { display: flex; gap: 0.6rem; margin-top: 1rem; align-items: center; }
