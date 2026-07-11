@@ -15,6 +15,7 @@
 //   resize       → text frame carrying {"rows","cols"} JSON, sent up only
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebglAddon } from "@xterm/addon-webgl";
 import "@xterm/xterm/css/xterm.css";
 
 // openSession connects `el` to its WebSocket and wires a live xterm into
@@ -34,6 +35,15 @@ function openSession(el, onClose) {
   const fit = new FitAddon();
   term.loadAddon(fit);
   term.open(el);
+  // WebGL renderer for pixel-perfect box drawing: the default DOM renderer
+  // draws box/block characters as font glyphs, which leave sub-pixel seams
+  // between cells; WebGL renders them itself (customGlyphs, on by default).
+  // Fall back silently to the DOM renderer where WebGL is unavailable.
+  try {
+    const webgl = new WebglAddon();
+    webgl.onContextLoss(() => webgl.dispose());
+    term.loadAddon(webgl);
+  } catch {}
   fit.fit();
 
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
