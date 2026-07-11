@@ -574,6 +574,8 @@ textarea.editor:focus { outline: none; border-color: var(--accent); }
 
 dialog.modal {
   width: min(30rem, calc(100vw - 2rem));
+  max-height: calc(100dvh - 4rem);
+  overflow: auto;
   padding: 1.25rem 1.5rem 1.5rem;
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -581,6 +583,8 @@ dialog.modal {
   color: var(--text);
   box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5);
 }
+/* Wider variant for form-heavy modals (the new-workload picker). */
+dialog.modal.modal-wide { width: min(50em, calc(100vw - 2rem)); }
 /* Destructive modals get a red-tinted border as a warning cue. */
 dialog.modal.modal-danger {
   border-color: color-mix(in srgb, var(--bad) 40%, var(--border));

@@ -1,12 +1,28 @@
 {{define "content"}}
 <section class="narrow">
   <h2>{{T "new.title"}}</h2>
-
   {{if .Error}}<div class="banner banner-error">{{.Error}}</div>{{end}}
+  <div class="card">{{template "new-workload-body" .}}</div>
+</section>
+{{end}}
 
-  <form method="post" action="/workloads" class="card form">
-    <label for="display_name">{{T "wl.display-name"}} <span class="hint">{{T "new.optional"}}</span></label>
-    <input type="text" id="display_name" name="display_name" value="{{.DisplayName}}"
+{{/* Modal fragment: served to HTMX requests for /workloads/new and swapped
+     into the lazy dialog in the layout. The full page above renders the same
+     body without the modal chrome, as the no-JS fallback. */}}
+{{define "new-workload-modal"}}
+<div class="modal-head">
+  <h2>{{T "new.title"}}</h2>
+  <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
+</div>
+{{if .Error}}<div class="banner banner-error">{{.Error}}</div>{{end}}
+{{template "new-workload-body" .}}
+{{end}}
+
+{{define "new-workload-body"}}
+  <form method="post" action="/workloads" class="form"
+        {{if .Modal}}hx-post="/workloads" hx-target="#new-workload-slot" hx-swap="innerHTML"{{end}}>
+    <label for="nw-display_name">{{T "wl.display-name"}} <span class="hint">{{T "new.optional"}}</span></label>
+    <input type="text" id="nw-display_name" name="display_name" value="{{.DisplayName}}"
            maxlength="60" autocomplete="off" autofocus>
     <p class="hint">{{T "new.display-hint"}}</p>
 
@@ -15,7 +31,7 @@
       {{range .Types}}
       <label class="template-option">
         <input type="radio" name="type" value="{{.ID}}" {{if eq .ID $.Selected.ID}}checked{{end}}
-               hx-get="/partials/workload-fields?type={{.ID}}" hx-target="#type-fields" hx-swap="innerHTML">
+               hx-get="/partials/workload-fields?type={{.ID}}" hx-target="#nw-type-fields" hx-swap="innerHTML">
         <div>
           <strong>{{TDef (printf "type.%s.label" .ID) .Label}}</strong>
           <p>{{TDef (printf "type.%s.description" .ID) .Description}}</p>
@@ -24,23 +40,22 @@
       {{end}}
     </div>
 
-    <div id="type-fields">
+    <div id="nw-type-fields">
       {{template "workload-type-fields" .}}
     </div>
 
     <div class="form-actions">
       <button type="submit" class="primary">{{T "new.create"}}</button>
-      <a href="/" class="button-link">{{T "common.cancel"}}</a>
+      <a href="/" class="button-link" data-close-dialog>{{T "common.cancel"}}</a>
     </div>
   </form>
 
   <p class="hint">{{T "new.draft-hint"}}</p>
-</section>
 {{end}}
 
 {{define "workload-type-fields"}}
-    <label for="name">{{T "wl.id"}}</label>
-    <input type="text" id="name" name="name" value="{{.Name}}" required
+    <label for="nw-name">{{T "wl.id"}}</label>
+    <input type="text" id="nw-name" name="name" value="{{.Name}}" required
            pattern="{{.Selected.NamePattern}}" maxlength="{{.Selected.NameMaxLen}}"
            autocomplete="off">
     <p class="hint">{{TDef (printf "type.%s.name-hint" .Selected.ID) .Selected.NameHint}}</p>

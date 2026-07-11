@@ -46,10 +46,31 @@ type newWorkloadData struct {
 	Error       string
 	Name        string
 	DisplayName string
+	// Modal is set when the form is rendered inside the lazy dialog so it
+	// submits over HTMX (errors re-render in place); the full page leaves
+	// it false and posts normally.
+	Modal bool
+}
+
+// hxRequest reports whether this is an HTMX-issued request.
+func hxRequest(r *http.Request) bool {
+	return r.Header.Get("HX-Request") == "true"
 }
 
 func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
 	sel := workloadType(nix.WorkloadTypeContainer) // default selection
+	// The sidebar New link hx-gets this to lazily fill the modal; a plain
+	// visit (or no-JS) renders the full page instead. The fragment needs
+	// no baseData — it never touches the sidebar.
+	if hxRequest(r) {
+		s.render(w, r, "workload_new", "new-workload-modal", newWorkloadData{
+			Types:     nix.RegisteredTypes(),
+			Selected:  sel,
+			Templates: sel.Templates,
+			Modal:     true,
+		})
+		return
+	}
 	s.renderPage(w, r, "workload_new", newWorkloadData{
 		baseData:  s.base(r, s.t(r, "new.title"), "dashboard"),
 		Types:     nix.RegisteredTypes(),
@@ -79,16 +100,25 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fail := func(msg string) {
-		w.WriteHeader(http.StatusUnprocessableEntity)
-		s.renderPage(w, r, "workload_new", newWorkloadData{
-			baseData:    s.base(r, s.t(r, "new.title"), "dashboard"),
+		data := newWorkloadData{
 			Types:       nix.RegisteredTypes(),
 			Selected:    wt,
 			Templates:   wt.Templates,
 			Error:       msg,
 			Name:        name,
 			DisplayName: displayName,
-		})
+		}
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		// From the modal, re-render just the fragment so the error shows in
+		// place (app.js opts 422 into the HTMX swap); a plain post gets the
+		// full page back. Success paths mirror this split below.
+		if hxRequest(r) {
+			data.Modal = true
+			s.render(w, r, "workload_new", "new-workload-modal", data)
+			return
+		}
+		data.baseData = s.base(r, s.t(r, "new.title"), "dashboard")
+		s.renderPage(w, r, "workload_new", data)
 	}
 
 	if !typeOK {
@@ -122,6 +152,12 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := s.store.CreateWorkload(name, displayName, wt.ID, tmpl.Content, nix.FormatHostPorts(tmpl.Ports)); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+	// HX-Redirect makes HTMX do a full navigation to the new workload;
+	// following the plain 303 would instead swap that page into the modal.
+	if hxRequest(r) {
+		w.Header().Set("HX-Redirect", "/workloads/"+name)
 		return
 	}
 	http.Redirect(w, r, "/workloads/"+name, http.StatusSeeOther)

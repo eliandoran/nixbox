@@ -38,7 +38,8 @@
     <aside class="sidebar">
       <div class="sidebar-head">
         <span class="sidebar-title">{{T "layout.workloads"}}</span>
-        <a href="/workloads/new" class="button-link primary sidebar-new">{{T "layout.new"}}</a>
+        <a href="/workloads/new" class="button-link primary sidebar-new"
+           hx-get="/workloads/new" hx-target="#new-workload-slot" hx-swap="innerHTML">{{T "layout.new"}}</a>
       </div>
       <nav class="workload-list" id="workloads"
            hx-get="/partials/workloads?active={{.Active}}" hx-trigger="every 5s" hx-swap="innerHTML">
@@ -49,6 +50,13 @@
       {{template "content" .}}
     </main>
   </div>
+
+  {{/* Lazy new-workload modal: the sidebar New link hx-gets the form
+       fragment into the slot, and app.js opens the dialog once it lands.
+       Without JS the link falls back to the full /workloads/new page. */}}
+  <dialog id="new-workload-dialog" class="modal modal-wide" data-lazy>
+    <div id="new-workload-slot"></div>
+  </dialog>
 </body>
 </html>{{end}}
 

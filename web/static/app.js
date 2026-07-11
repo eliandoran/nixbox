@@ -322,13 +322,38 @@ document.addEventListener("click", (ev) => {
   }
 
   const closer = ev.target.closest("[data-close-dialog]");
-  if (closer) closer.closest("dialog")?.close();
+  if (closer) {
+    // Cancel is an <a href> for the no-JS full page; inside an open dialog,
+    // suppress that navigation and just close the modal.
+    const dlg = closer.closest("dialog");
+    if (dlg?.open) {
+      ev.preventDefault();
+      dlg.close();
+    }
+  }
 });
 
 document.addEventListener("htmx:afterRequest", (ev) => {
   const form = ev.target;
   if (!(form instanceof Element) || !form.matches("[data-close-on-success]")) return;
   if (ev.detail.successful) form.closest("dialog")?.close();
+});
+
+// Lazy modals: a trigger hx-gets a fragment into a [data-lazy] dialog's
+// slot; open the dialog once the fragment lands. Nested swaps inside the
+// already-open dialog (e.g. the new-workload type picker) are ignored by
+// the open guard, so this only fires on the initial fill.
+document.addEventListener("htmx:afterSwap", (ev) => {
+  if (!(ev.target instanceof Element)) return;
+  const dlg = ev.target.closest("dialog.modal[data-lazy]");
+  if (dlg instanceof HTMLDialogElement && !dlg.open) dlg.showModal();
+});
+
+// Form re-renders on validation failure come back as 422 (the correct
+// status), which htmx would otherwise treat as an error and not swap. Opt
+// those in so the re-rendered form (with its error banner) replaces the old.
+document.addEventListener("htmx:beforeSwap", (ev) => {
+  if (ev.detail.xhr.status === 422) ev.detail.shouldSwap = true;
 });
 
 // Secrets: one dialog serves both Add and Edit. The Add button opens it
