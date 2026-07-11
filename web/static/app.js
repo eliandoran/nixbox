@@ -1,3 +1,7 @@
+// UI messages that JS needs to render live in body data attributes,
+// translated server-side (see the <body> tag in layout.html).
+const msg = (key) => document.body.dataset[key] || key;
+
 // Live job log: tail the job's SSE stream into the #job-log pre.
 // Called from the job-log fragment after HTMX swaps it in.
 function watchJob() {
@@ -107,8 +111,14 @@ function watchMetrics() {
     setBar("m-disk-bar", ratio(h.diskUsed, h.diskTotal));
 
     if (!s.containers || !s.containers.length) {
-      rows.innerHTML =
-        '<tr class="metrics-empty"><td colspan="4" class="empty">No enabled containers.</td></tr>';
+      const tr = document.createElement("tr");
+      tr.className = "metrics-empty";
+      const td = document.createElement("td");
+      td.colSpan = 4;
+      td.className = "empty";
+      td.textContent = msg("msgNoContainers");
+      tr.append(td);
+      rows.replaceChildren(tr);
       return;
     }
     rows.replaceChildren(...s.containers.map((c) => {
@@ -271,7 +281,7 @@ function guardUnsavedEditor() {
     const dirty = signature() !== savedValue;
     for (const { btn, wasDisabled } of guarded) {
       btn.disabled = wasDisabled || dirty;
-      btn.title = !wasDisabled && dirty ? "Unsaved changes — save first" : "";
+      btn.title = !wasDisabled && dirty ? msg("msgUnsaved") : "";
     }
   }
 

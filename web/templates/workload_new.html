@@ -1,24 +1,24 @@
 {{define "content"}}
 <section class="narrow">
-  <h2>New workload</h2>
+  <h2>{{T "new.title"}}</h2>
 
   {{if .Error}}<div class="banner banner-error">{{.Error}}</div>{{end}}
 
   <form method="post" action="/workloads" class="card form">
-    <label for="display_name">Display name <span class="hint">(optional)</span></label>
+    <label for="display_name">{{T "wl.display-name"}} <span class="hint">{{T "new.optional"}}</span></label>
     <input type="text" id="display_name" name="display_name" value="{{.DisplayName}}"
            maxlength="60" autocomplete="off" autofocus>
-    <p class="hint">A friendly label for the UI. Free-form; leave blank to just use the ID below.</p>
+    <p class="hint">{{T "new.display-hint"}}</p>
 
-    <label>Type</label>
+    <label>{{T "wl.type"}}</label>
     <div class="template-picker">
       {{range .Types}}
       <label class="template-option">
         <input type="radio" name="type" value="{{.ID}}" {{if eq .ID $.Selected.ID}}checked{{end}}
                hx-get="/partials/workload-fields?type={{.ID}}" hx-target="#type-fields" hx-swap="innerHTML">
         <div>
-          <strong>{{.Label}}</strong>
-          <p>{{.Description}}</p>
+          <strong>{{TDef (printf "type.%s.label" .ID) .Label}}</strong>
+          <p>{{TDef (printf "type.%s.description" .ID) .Description}}</p>
         </div>
       </label>
       {{end}}
@@ -29,31 +29,30 @@
     </div>
 
     <div class="form-actions">
-      <button type="submit" class="primary">Create</button>
-      <a href="/" class="button-link">Cancel</a>
+      <button type="submit" class="primary">{{T "new.create"}}</button>
+      <a href="/" class="button-link">{{T "common.cancel"}}</a>
     </div>
   </form>
 
-  <p class="hint">The workload is created as a draft: it only becomes part of the
-  system after you enable it and apply.</p>
+  <p class="hint">{{T "new.draft-hint"}}</p>
 </section>
 {{end}}
 
 {{define "workload-type-fields"}}
-    <label for="name">ID</label>
+    <label for="name">{{T "wl.id"}}</label>
     <input type="text" id="name" name="name" value="{{.Name}}" required
            pattern="{{.Selected.NamePattern}}" maxlength="{{.Selected.NameMaxLen}}"
            autocomplete="off">
-    <p class="hint">{{.Selected.NameHint}}</p>
+    <p class="hint">{{TDef (printf "type.%s.name-hint" .Selected.ID) .Selected.NameHint}}</p>
 
-    <label>Template</label>
+    <label>{{T "new.template"}}</label>
     <div class="template-picker">
       {{range $i, $t := .Templates}}
       <label class="template-option">
         <input type="radio" name="template" value="{{$t.ID}}" {{if eq $i 0}}checked{{end}}>
         <div>
-          <strong>{{$t.Name}}</strong>
-          <p>{{$t.Description}}</p>
+          <strong>{{TDef (printf "template.%s.%s.name" $.Selected.ID $t.ID) $t.Name}}</strong>
+          <p>{{TDef (printf "template.%s.%s.description" $.Selected.ID $t.ID) $t.Description}}</p>
         </div>
       </label>
       {{end}}

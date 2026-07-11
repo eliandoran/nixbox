@@ -47,7 +47,7 @@ func (s *Server) handleTerminalPage(w http.ResponseWriter, r *http.Request) {
 		Enabled bool
 	}
 	s.renderPage(w, r, "terminal", data{
-		baseData: s.base(r, "Terminal", "terminal"),
+		baseData: s.base(r, s.t(r, "nav.terminal"), "terminal"),
 		Enabled:  s.cfg.EnableTerminal,
 	})
 }
@@ -90,7 +90,7 @@ func (s *Server) handleWorkloadTerminal(w http.ResponseWriter, r *http.Request) 
 	}
 	wt := workloadType(wl.Type)
 	if wt.ShellArgs == nil {
-		http.Error(w, "workload type has no shell", http.StatusBadRequest)
+		http.Error(w, s.t(r, "err.no-shell"), http.StatusBadRequest)
 		return
 	}
 	s.serveTerminal(w, r, wt.ShellArgs(wl.Name))
@@ -102,7 +102,7 @@ func (s *Server) handleWorkloadTerminal(w http.ResponseWriter, r *http.Request) 
 // down.
 func (s *Server) serveTerminal(w http.ResponseWriter, r *http.Request, argv []string) {
 	if !s.cfg.EnableTerminal {
-		http.Error(w, "terminal disabled (set NIXBOX_TERMINAL=1 to enable)", http.StatusForbidden)
+		http.Error(w, s.t(r, "err.terminal-disabled"), http.StatusForbidden)
 		return
 	}
 

@@ -2,7 +2,6 @@ package server
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -28,7 +27,7 @@ func (s *Server) handleFlakeList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.renderPage(w, r, "flakes", flakeListData{
-		baseData: s.base(r, "Flakes", "flakes"),
+		baseData: s.base(r, s.t(r, "nav.flakes"), "flakes"),
 		Inputs:   inputs,
 		Busy:     s.jobs.Busy(),
 		DryRun:   s.cfg.DryRun,
@@ -50,11 +49,11 @@ func (s *Server) handleFlakeCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if ref == "" {
-		fail("a flake reference (URL) is required")
+		fail(s.t(r, "err.ref-required"))
 		return
 	}
 	if _, err := s.store.FlakeInputByName(name); err == nil {
-		fail(fmt.Sprintf("an input named %q already exists", name))
+		fail(s.t(r, "err.input-exists", name))
 		return
 	} else if !errors.Is(err, store.ErrNotFound) {
 		httpError(w, err, http.StatusInternalServerError)
@@ -64,7 +63,7 @@ func (s *Server) handleFlakeCreate(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/flakes?flash=Added.+Apply+to+lock+it.", http.StatusSeeOther)
+	http.Redirect(w, r, "/flakes?flash="+url.QueryEscape(s.t(r, "flash.input-added")), http.StatusSeeOther)
 }
 
 func (s *Server) handleFlakeSave(w http.ResponseWriter, r *http.Request) {
@@ -75,14 +74,14 @@ func (s *Server) handleFlakeSave(w http.ResponseWriter, r *http.Request) {
 	ref := strings.TrimSpace(r.FormValue("url"))
 	follows := r.FormValue("follows_nixpkgs") == "on"
 	if ref == "" {
-		http.Redirect(w, r, "/flakes?error=a+flake+reference+is+required", http.StatusSeeOther)
+		http.Redirect(w, r, "/flakes?error="+url.QueryEscape(s.t(r, "err.ref-required")), http.StatusSeeOther)
 		return
 	}
 	if err := s.store.UpdateFlakeInput(in.ID, ref, follows); err != nil {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/flakes?flash=Saved.+Apply+to+re-lock.", http.StatusSeeOther)
+	http.Redirect(w, r, "/flakes?flash="+url.QueryEscape(s.t(r, "flash.input-saved")), http.StatusSeeOther)
 }
 
 // handleFlakeDelete drops the input. flake.nix is regenerated (without it)
@@ -97,7 +96,7 @@ func (s *Server) handleFlakeDelete(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/flakes?flash=Removed.+Apply+to+re-lock.", http.StatusSeeOther)
+	http.Redirect(w, r, "/flakes?flash="+url.QueryEscape(s.t(r, "flash.input-removed")), http.StatusSeeOther)
 }
 
 // handleFlakeApply regenerates flake.nix from the declared inputs and
@@ -110,7 +109,7 @@ func (s *Server) handleFlakeApply(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err := s.startApply(nil, mode)
 	if errors.Is(err, jobs.ErrBusy) {
-		http.Error(w, "a job is already running", http.StatusConflict)
+		http.Error(w, s.t(r, "err.busy"), http.StatusConflict)
 		return
 	}
 	if err != nil {

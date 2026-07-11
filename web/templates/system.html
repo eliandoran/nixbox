@@ -1,10 +1,10 @@
 {{define "content"}}
 <section>
   <div class="section-head">
-    <h2>System</h2>
+    <h2>{{T "nav.system"}}</h2>
     <form hx-post="/system/rebuild" hx-target="#job-panel" hx-swap="innerHTML">
       <button type="submit" class="primary" {{if .Busy}}disabled{{end}}>
-        {{if .DryRun}}Rebuild (dry-run){{else}}Rebuild &amp; switch{{end}}
+        {{if .DryRun}}{{T "sys.rebuild-dry"}}{{else}}{{T "sys.rebuild-switch"}}{{end}}
       </button>
     </form>
   </div>
@@ -15,10 +15,10 @@
 </section>
 
 <section>
-  <h2>Recent jobs</h2>
+  <h2>{{T "sys.recent-jobs"}}</h2>
   {{if .Jobs}}
   <table class="jobs">
-    <thead><tr><th>#</th><th>Kind</th><th>Status</th><th>Started</th><th>Exit</th><th>Generation</th><th></th></tr></thead>
+    <thead><tr><th>#</th><th>{{T "sys.col-kind"}}</th><th>{{T "sys.col-status"}}</th><th>{{T "sys.col-started"}}</th><th>{{T "sys.col-exit"}}</th><th>{{T "dash.generation"}}</th><th></th></tr></thead>
     <tbody>
       {{range .Jobs}}
       <tr>
@@ -28,55 +28,53 @@
         <td>{{.StartedAt.Local.Format "2006-01-02 15:04:05"}}</td>
         <td>{{if .ExitCode.Valid}}{{.ExitCode.Int64}}{{else}}—{{end}}</td>
         <td>{{if .Generation.Valid}}{{.Generation.Int64}}{{else}}—{{end}}</td>
-        <td><button hx-get="/system/jobs/{{.ID}}/log" hx-target="#job-panel" hx-swap="innerHTML">log</button></td>
+        <td><button hx-get="/system/jobs/{{.ID}}/log" hx-target="#job-panel" hx-swap="innerHTML">{{T "sys.log"}}</button></td>
       </tr>
       {{end}}
     </tbody>
   </table>
   {{else}}
-  <p class="empty">No jobs yet.</p>
+  <p class="empty">{{T "sys.no-jobs"}}</p>
   {{end}}
 </section>
 
 <section>
   <div class="section-head">
-    <h2>Power</h2>
+    <h2>{{T "sys.power"}}</h2>
   </div>
-  <p class="hint">Reboot or shut down the host running nixbox.
-  {{if .DryRun}}Dry-run mode: these buttons run through the flow but do not touch the machine.{{end}}</p>
+  <p class="hint">{{T "sys.power-hint"}}
+  {{if .DryRun}}{{T "sys.power-dry-hint"}}{{end}}</p>
   <div class="form-actions">
-    <button type="button" data-open-dialog="reboot-dialog" {{if .Busy}}disabled{{end}}>Restart</button>
-    <button type="button" class="danger" data-open-dialog="poweroff-dialog" {{if .Busy}}disabled{{end}}>Shut down</button>
+    <button type="button" data-open-dialog="reboot-dialog" {{if .Busy}}disabled{{end}}>{{T "common.restart"}}</button>
+    <button type="button" class="danger" data-open-dialog="poweroff-dialog" {{if .Busy}}disabled{{end}}>{{T "sys.shutdown"}}</button>
   </div>
   <div id="power-result"></div>
 </section>
 
 <dialog id="reboot-dialog" class="modal modal-danger">
   <div class="modal-head">
-    <h2>Restart host</h2>
-    <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
+    <h2>{{T "sys.reboot-title"}}</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
   </div>
-  <p class="hint">Reboots the machine. nixbox and every container go down until
-  it comes back up.</p>
+  <p class="hint">{{T "sys.reboot-hint"}}</p>
   <form hx-post="/system/reboot" hx-target="#power-result" hx-swap="innerHTML" data-close-on-success>
     <div class="form-actions">
-      <button type="button" data-close-dialog>Cancel</button>
-      <button class="primary" {{if .Busy}}disabled{{end}}>Restart now</button>
+      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
+      <button class="primary" {{if .Busy}}disabled{{end}}>{{T "sys.restart-now"}}</button>
     </div>
   </form>
 </dialog>
 
 <dialog id="poweroff-dialog" class="modal modal-danger">
   <div class="modal-head">
-    <h2>Shut down host</h2>
-    <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
+    <h2>{{T "sys.poweroff-title"}}</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
   </div>
-  <p class="hint">Powers the machine off. It stays down until something turns it
-  back on — on a headless server that means physical or out-of-band access.</p>
+  <p class="hint">{{T "sys.poweroff-hint"}}</p>
   <form hx-post="/system/poweroff" hx-target="#power-result" hx-swap="innerHTML" data-close-on-success>
     <div class="form-actions">
-      <button type="button" data-close-dialog>Cancel</button>
-      <button class="danger" {{if .Busy}}disabled{{end}}>Shut down now</button>
+      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
+      <button class="danger" {{if .Busy}}disabled{{end}}>{{T "sys.shutdown-now"}}</button>
     </div>
   </form>
 </dialog>
@@ -85,11 +83,11 @@
 {{define "power-result"}}
 <div class="banner banner-ok">
   {{- if .DryRun}}
-  Dry-run: would {{if eq .Action "reboot"}}reboot{{else}}shut down{{end}} the machine — nothing happened.
+  {{if eq .Action "reboot"}}{{T "sys.dry-would-reboot"}}{{else}}{{T "sys.dry-would-shutdown"}}{{end}}
   {{- else if eq .Action "reboot"}}
-  Rebooting… the machine will disconnect shortly.
+  {{T "sys.rebooting"}}
   {{- else}}
-  Shutting down… the machine will power off shortly.
+  {{T "sys.shutting-down"}}
   {{- end}}
 </div>
 {{end}}

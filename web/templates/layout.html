@@ -1,5 +1,5 @@
 {{define "layout"}}<!doctype html>
-<html lang="en">
+<html lang="{{lang}}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -13,16 +13,16 @@
   <script src="/static/codemirror.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
-<body>
+<body data-msg-no-containers="{{T "js.no-enabled-containers"}}" data-msg-unsaved="{{T "js.unsaved-changes"}}">
   <header class="topbar">
     <a class="brand" href="/">nix<span>box</span></a>
     <nav>
-      <a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>Dashboard</a>
-      <a href="/flakes" {{if eq .Nav "flakes"}}class="active"{{end}}>Flakes</a>
-      <a href="/terminal" {{if eq .Nav "terminal"}}class="active"{{end}}>Terminal</a>
-      <a href="/system" {{if eq .Nav "system"}}class="active"{{end}}>System</a>
+      <a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>{{T "nav.dashboard"}}</a>
+      <a href="/flakes" {{if eq .Nav "flakes"}}class="active"{{end}}>{{T "nav.flakes"}}</a>
+      <a href="/terminal" {{if eq .Nav "terminal"}}class="active"{{end}}>{{T "nav.terminal"}}</a>
+      <a href="/system" {{if eq .Nav "system"}}class="active"{{end}}>{{T "nav.system"}}</a>
     </nav>
-    <button class="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme">
+    <button class="theme-toggle" type="button" aria-label="{{T "layout.theme-toggle"}}" title="{{T "layout.theme-toggle"}}">
       <svg class="icon-sun" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
@@ -31,8 +31,8 @@
   <div class="shell">
     <aside class="sidebar">
       <div class="sidebar-head">
-        <span class="sidebar-title">Workloads</span>
-        <a href="/workloads/new" class="button-link primary sidebar-new">New</a>
+        <span class="sidebar-title">{{T "layout.workloads"}}</span>
+        <a href="/workloads/new" class="button-link primary sidebar-new">{{T "layout.new"}}</a>
       </div>
       <nav class="workload-list" id="workloads"
            hx-get="/partials/workloads?active={{.Active}}" hx-trigger="every 5s" hx-swap="innerHTML">
@@ -49,7 +49,7 @@
 {{define "workload-list"}}
   {{range .WorkloadGroups}}
   <div class="workload-group">
-    <div class="workload-group-label">{{.Label}}</div>
+    <div class="workload-group-label">{{TDef (printf "type.%s.label" .Type) .Label}}</div>
     {{range .Workloads}}
     <a class="workload-item{{if eq .Name $.Active}} active{{end}}" href="/workloads/{{.Name}}">
       <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
@@ -58,14 +58,14 @@
     {{end}}
   </div>
   {{else}}
-  <p class="empty sidebar-empty">No workloads yet.</p>
+  <p class="empty sidebar-empty">{{T "layout.no-workloads"}}</p>
   {{end}}
 {{end}}
 
 {{define "job-log"}}
 <div class="card log-card">
   <div class="log-head">
-    <strong>Job #{{.ID}}</strong> — {{.Kind}}
+    <strong>{{T "job.title" .ID}}</strong> — {{.Kind}}
     <span class="status status-{{.Status}}" id="job-status">{{.Status}}</span>
   </div>
   <pre class="log" id="job-log" data-job-id="{{.ID}}" data-live="{{if eq .Status "running"}}1{{end}}"></pre>

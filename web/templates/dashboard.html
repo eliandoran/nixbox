@@ -1,29 +1,29 @@
 {{define "content"}}
 <section class="cards">
   <div class="card host-card">
-    <h2>Host</h2>
+    <h2>{{T "dash.host"}}</h2>
     <dl>
-      <dt>Hostname</dt><dd>{{.Host.Hostname}}</dd>
-      <dt>NixOS</dt><dd>{{.Host.OSVersion}}</dd>
-      <dt>Generation</dt><dd>{{if .Host.Generation}}{{.Host.Generation}}{{else}}—{{end}}</dd>
-      <dt>State dir</dt><dd><code>{{.Host.StateDir}}</code></dd>
+      <dt>{{T "dash.hostname"}}</dt><dd>{{.Host.Hostname}}</dd>
+      <dt>{{T "dash.nixos"}}</dt><dd>{{.Host.OSVersion}}</dd>
+      <dt>{{T "dash.generation"}}</dt><dd>{{if .Host.Generation}}{{.Host.Generation}}{{else}}—{{end}}</dd>
+      <dt>{{T "dash.state-dir"}}</dt><dd><code>{{.Host.StateDir}}</code></dd>
     </dl>
   </div>
   <div class="card metrics-card" id="host-metrics">
-    <h2>Load</h2>
+    <h2>{{T "dash.load"}}</h2>
     <dl>
-      <dt>Load avg</dt><dd id="m-load">—</dd>
-      <dt>CPU</dt>
+      <dt>{{T "dash.load-avg"}}</dt><dd id="m-load">—</dd>
+      <dt>{{T "common.cpu"}}</dt>
       <dd>
         <div class="meter"><span id="m-cpu-bar"></span></div>
         <span class="meter-label" id="m-cpu">—</span>
       </dd>
-      <dt>Memory</dt>
+      <dt>{{T "common.memory"}}</dt>
       <dd>
         <div class="meter"><span id="m-mem-bar"></span></div>
         <span class="meter-label" id="m-mem">—</span>
       </dd>
-      <dt>Store disk</dt>
+      <dt>{{T "dash.store-disk"}}</dt>
       <dd>
         <div class="meter"><span id="m-disk-bar"></span></div>
         <span class="meter-label" id="m-disk">—</span>
@@ -33,13 +33,13 @@
 </section>
 
 <div class="card usage-card">
-  <h2>Container usage</h2>
+  <h2>{{T "dash.usage"}}</h2>
   <table class="jobs metrics-table">
     <thead>
-      <tr><th>Container</th><th>CPU</th><th>Memory</th><th>Tasks</th></tr>
+      <tr><th>{{T "dash.col-container"}}</th><th>{{T "common.cpu"}}</th><th>{{T "common.memory"}}</th><th>{{T "common.tasks"}}</th></tr>
     </thead>
     <tbody id="container-metrics">
-      <tr class="metrics-empty"><td colspan="4" class="empty">waiting for samples…</td></tr>
+      <tr class="metrics-empty"><td colspan="4" class="empty">{{T "dash.waiting-samples"}}</td></tr>
     </tbody>
   </table>
 </div>

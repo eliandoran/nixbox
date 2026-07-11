@@ -118,11 +118,20 @@ func (s *Server) loadCatalogs() error {
 }
 
 // i18nFuncs are the template funcs backed by a localizer: T looks up a
-// message by key, lang reports the active locale (e.g. <html lang>).
-// They are registered at parse time with the server default and rebound
-// to the request's locale in render.
+// message by key, TDef looks one up with an explicit fallback (for
+// strings whose English source lives in Go, like the workload-type
+// registry), lang reports the active locale (e.g. <html lang>). They
+// are registered at parse time with the server default and rebound to
+// the request's locale in render.
 func i18nFuncs(loc *i18n.Localizer) template.FuncMap {
-	return template.FuncMap{"T": loc.T, "lang": loc.Lang}
+	return template.FuncMap{"T": loc.T, "TDef": loc.Def, "lang": loc.Lang}
+}
+
+// t translates a message for the request's locale — the handler-side
+// counterpart of the template T func, for flashes, error texts, and
+// page titles.
+func (s *Server) t(r *http.Request, key string, args ...any) string {
+	return s.localizer(r).T(key, args...)
 }
 
 // defaultLocalizer resolves the server's configured default locale. Used

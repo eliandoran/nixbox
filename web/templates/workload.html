@@ -4,44 +4,44 @@
     <h2>
       <span class="dot {{if .Running}}dot-on{{else}}dot-off{{end}}"></span>
       {{.Workload.Display}}
-      <button type="button" class="rename-btn" data-open-dialog="rename-dialog" aria-label="Rename" title="Rename">
+      <button type="button" class="rename-btn" data-open-dialog="rename-dialog" aria-label="{{T "wl.rename"}}" title="{{T "wl.rename"}}">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
       </button>
-      <span class="badge state-{{.State}}">{{.State}}</span>
-      {{if .Workload.Enabled}}<span class="badge badge-on">enabled</span>{{else}}<span class="badge">disabled</span>{{end}}
+      <span class="badge state-{{.State}}">{{T (printf "state.%s" .State)}}</span>
+      {{if .Workload.Enabled}}<span class="badge badge-on">{{T "badge.enabled"}}</span>{{else}}<span class="badge">{{T "badge.disabled"}}</span>{{end}}
       {{if .Ports}}<span class="port-chips">{{range .Ports}}<span class="port-chip">:{{.Port}}{{if eq .Proto "udp"}}/udp{{end}}</span>{{end}}</span>{{end}}
     </h2>
     <div class="action-bar">
       {{if .Workload.Enabled}}
-      <form method="post" action="/workloads/{{.Workload.Name}}/disable"><button>Disable</button></form>
+      <form method="post" action="/workloads/{{.Workload.Name}}/disable"><button>{{T "wl.disable"}}</button></form>
       <form hx-post="/workloads/{{.Workload.Name}}/apply" hx-target="#job-panel" hx-swap="innerHTML">
-        <button class="primary" data-requires-saved {{if .Busy}}disabled{{end}}>Apply</button>
+        <button class="primary" data-requires-saved {{if .Busy}}disabled{{end}}>{{T "common.apply"}}</button>
       </form>
       {{else}}
-      <form method="post" action="/workloads/{{.Workload.Name}}/enable"><button class="primary">Enable</button></form>
+      <form method="post" action="/workloads/{{.Workload.Name}}/enable"><button class="primary">{{T "wl.enable"}}</button></form>
       {{end}}
       {{if .Running}}
-      <form method="post" action="/workloads/{{.Workload.Name}}/restart"><button>Restart</button></form>
-      <form method="post" action="/workloads/{{.Workload.Name}}/stop"><button>Stop</button></form>
+      <form method="post" action="/workloads/{{.Workload.Name}}/restart"><button>{{T "common.restart"}}</button></form>
+      <form method="post" action="/workloads/{{.Workload.Name}}/stop"><button>{{T "wl.stop"}}</button></form>
       {{else}}
-      <form method="post" action="/workloads/{{.Workload.Name}}/start"><button>Start</button></form>
+      <form method="post" action="/workloads/{{.Workload.Name}}/start"><button>{{T "wl.start"}}</button></form>
       {{end}}
     </div>
   </div>
   <div class="cards">
     <div class="card">
-      <h2>Resource usage</h2>
+      <h2>{{T "wl.usage"}}</h2>
       <dl id="workload-metrics" data-name="{{.Workload.Name}}">
-        <dt>CPU</dt><dd id="wm-cpu">—</dd>
-        <dt>Memory</dt><dd id="wm-mem">—</dd>
-        <dt>Tasks</dt><dd id="wm-tasks">—</dd>
+        <dt>{{T "common.cpu"}}</dt><dd id="wm-cpu">—</dd>
+        <dt>{{T "common.memory"}}</dt><dd id="wm-mem">—</dd>
+        <dt>{{T "common.tasks"}}</dt><dd id="wm-tasks">—</dd>
       </dl>
     </div>
     <div class="card">
-      <h2>Details</h2>
+      <h2>{{T "wl.details"}}</h2>
       <dl>
-        <dt>ID</dt><dd><code>{{.Workload.Name}}</code></dd>
-        <dt>Type</dt><dd>{{.Workload.Type}}</dd>
+        <dt>{{T "wl.id"}}</dt><dd><code>{{.Workload.Name}}</code></dd>
+        <dt>{{T "wl.type"}}</dt><dd>{{TDef (printf "type.%s.label" .Workload.Type) .Workload.Type}}</dd>
       </dl>
     </div>
   </div>
@@ -50,19 +50,19 @@
 </section>
 
 <div class="tabs" id="workload-tabs">
-  <div class="tablist" role="tablist" aria-label="Workload views">
+  <div class="tablist" role="tablist" aria-label="{{T "wl.tabs-aria"}}">
     <button type="button" role="tab" class="tab" id="tab-config" data-tab="config"
-            aria-controls="panel-config" aria-selected="true">Config</button>
+            aria-controls="panel-config" aria-selected="true">{{T "wl.tab-config"}}</button>
     <button type="button" role="tab" class="tab" id="tab-logs" data-tab="logs"
-            aria-controls="panel-logs" aria-selected="false" tabindex="-1">Logs</button>
+            aria-controls="panel-logs" aria-selected="false" tabindex="-1">{{T "wl.tab-logs"}}</button>
     {{if and .TerminalEnabled .HasShell}}
     <button type="button" role="tab" class="tab" id="tab-terminal" data-tab="terminal"
-            aria-controls="panel-terminal" aria-selected="false" tabindex="-1">Terminal</button>
+            aria-controls="panel-terminal" aria-selected="false" tabindex="-1">{{T "nav.terminal"}}</button>
     {{end}}
     <button type="button" role="tab" class="tab" id="tab-revisions" data-tab="revisions"
-            aria-controls="panel-revisions" aria-selected="false" tabindex="-1">Revisions</button>
+            aria-controls="panel-revisions" aria-selected="false" tabindex="-1">{{T "wl.tab-revisions"}}</button>
     <button type="button" role="tab" class="tab tab-end" id="tab-manage" data-tab="manage"
-            aria-controls="panel-manage" aria-selected="false" tabindex="-1">Manage</button>
+            aria-controls="panel-manage" aria-selected="false" tabindex="-1">{{T "wl.tab-manage"}}</button>
   </div>
 
   <section class="tabpanel" id="panel-config" role="tabpanel" aria-labelledby="tab-config" tabindex="0">
@@ -71,42 +71,41 @@
 
     <div class="field">
       <div class="field-head">
-        <span class="field-label">Host ports</span>
-        <span class="hint">Opened on the host firewall — for ports served directly on the host's
-        network stack (nixos-containers, host-networked OCI, or host services). Podman-published
-        ports (<code>ports = [ "8080:80" ]</code>) don't need an entry. Saved with the config.</span>
+        <span class="field-label">{{T "wl.host-ports"}}</span>
+        <span class="hint">{{T "wl.ports-hint-1"}}
+        (<code>ports = [ "8080:80" ]</code>) {{T "wl.ports-hint-2"}}</span>
       </div>
       <div class="port-rows" id="host-ports">
         {{range .Ports}}
         <div class="port-row">
-          <input type="number" name="port" min="1" max="65535" value="{{.Port}}" placeholder="port">
+          <input type="number" name="port" min="1" max="65535" value="{{.Port}}" placeholder="{{T "wl.port-placeholder"}}">
           <select name="proto">
             <option value="tcp" {{if eq .Proto "tcp"}}selected{{end}}>tcp</option>
             <option value="udp" {{if eq .Proto "udp"}}selected{{end}}>udp</option>
           </select>
-          <button type="button" class="port-del" aria-label="Remove port">&times;</button>
+          <button type="button" class="port-del" aria-label="{{T "wl.remove-port"}}">&times;</button>
         </div>
         {{end}}
       </div>
-      <button type="button" class="port-add">+ Add port</button>
+      <button type="button" class="port-add">{{T "wl.add-port"}}</button>
     </div>
     <template id="port-row-tpl">
       <div class="port-row">
-        <input type="number" name="port" min="1" max="65535" placeholder="port">
+        <input type="number" name="port" min="1" max="65535" placeholder="{{T "wl.port-placeholder"}}">
         <select name="proto">
           <option value="tcp">tcp</option>
           <option value="udp">udp</option>
         </select>
-        <button type="button" class="port-del" aria-label="Remove port">&times;</button>
+        <button type="button" class="port-del" aria-label="{{T "wl.remove-port"}}">&times;</button>
       </div>
     </template>
 
     <div class="form-actions">
-      <button type="submit" class="primary">Save</button>
+      <button type="submit" class="primary">{{T "common.save"}}</button>
       <button type="button" hx-post="/workloads/{{.Workload.Name}}/validate"
-              hx-target="#save-result" hx-swap="innerHTML">Validate</button>
+              hx-target="#save-result" hx-swap="innerHTML">{{T "wl.validate"}}</button>
       <button type="button" hx-post="/workloads/{{.Workload.Name}}/apply" hx-vals='{"mode":"build"}'
-              hx-target="#job-panel" hx-swap="innerHTML" data-requires-saved {{if .Busy}}disabled{{end}}>Dry build</button>
+              hx-target="#job-panel" hx-swap="innerHTML" data-requires-saved {{if .Busy}}disabled{{end}}>{{T "wl.dry-build"}}</button>
     </div>
   </form>
   <div id="save-result"></div>
@@ -118,7 +117,7 @@
   <div class="panel-toolbar end">
     <label class="checkbox hint">
       <input type="checkbox" id="log-source-inside">
-      journal from inside the container
+      {{T "wl.journal-inside"}}
     </label>
   </div>
   {{end}}
@@ -131,9 +130,9 @@
   <section class="tabpanel" id="panel-terminal" role="tabpanel" aria-labelledby="tab-terminal" tabindex="0" hidden>
   <div class="panel-toolbar">
     <button type="button" class="primary" id="wl-terminal-btn" data-terminal-open="wl-terminal"
-            {{if not .Running}}disabled title="The container must be running first."{{end}}>Open shell</button>
-    <span class="hint">Opens an interactive shell inside <code>{{.Workload.Name}}</code>.
-    {{if not .Running}}The container must be running first.{{end}}</span>
+            {{if not .Running}}disabled title="{{T "wl.must-run"}}"{{end}}>{{T "wl.open-shell"}}</button>
+    <span class="hint">{{T "wl.shell-hint"}} <code>{{.Workload.Name}}</code>.
+    {{if not .Running}}{{T "wl.must-run"}}{{end}}</span>
   </div>
   <link rel="stylesheet" href="/static/xterm.css">
   <div id="wl-terminal" class="terminal terminal-inline"
@@ -145,7 +144,7 @@
   <section class="tabpanel" id="panel-revisions" role="tabpanel" aria-labelledby="tab-revisions" tabindex="0" hidden>
   {{if .Revisions}}
   <table class="jobs">
-    <thead><tr><th>#</th><th>Saved</th><th>Note</th><th></th><th></th></tr></thead>
+    <thead><tr><th>#</th><th>{{T "wl.col-saved"}}</th><th>{{T "wl.col-note"}}</th><th></th><th></th></tr></thead>
     <tbody>
       {{range .Revisions}}
       <tr>
@@ -153,13 +152,13 @@
         <td>{{.CreatedAt.Local.Format "2006-01-02 15:04:05"}}</td>
         <td>{{.Note}}
           {{if and $.Workload.AppliedRevisionID.Valid (eq $.Workload.AppliedRevisionID.Int64 .ID)}}
-          <span class="badge badge-on">applied</span>
+          <span class="badge badge-on">{{T "state.applied"}}</span>
           {{end}}
         </td>
-        <td class="rev-content"><details><summary>view</summary><pre>{{.Content}}</pre></details></td>
+        <td class="rev-content"><details><summary>{{T "wl.view"}}</summary><pre>{{.Content}}</pre></details></td>
         <td>
           <form method="post" action="/workloads/{{$.Workload.Name}}/revisions/{{.ID}}/restore">
-            <button>Restore</button>
+            <button>{{T "wl.restore"}}</button>
           </form>
         </td>
       </tr>
@@ -167,64 +166,60 @@
     </tbody>
   </table>
   {{else}}
-  <p class="hint">No revisions yet.</p>
+  <p class="hint">{{T "wl.no-revisions"}}</p>
   {{end}}
   </section>
 
   <section class="tabpanel" id="panel-manage" role="tabpanel" aria-labelledby="tab-manage" tabindex="0" hidden>
   <div class="danger-zone">
-    <p class="hint">Removing this workload disables it, rebuilds the system without it, then
-    deletes it and its history. This cannot be undone.</p>
-    <button type="button" class="danger" data-open-dialog="destroy-dialog" {{if .Busy}}disabled{{end}}>Destroy workload</button>
+    <p class="hint">{{T "wl.destroy-hint"}}</p>
+    <button type="button" class="danger" data-open-dialog="destroy-dialog" {{if .Busy}}disabled{{end}}>{{T "wl.destroy"}}</button>
   </div>
   </section>
 </div>
 
 <dialog id="rename-dialog" class="modal">
   <div class="modal-head">
-    <h2>Rename</h2>
-    <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
+    <h2>{{T "wl.rename"}}</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
   </div>
-  <p class="hint">A friendly label for the UI. The workload ID
-  <code>{{.Workload.Name}}</code> is permanent and unaffected. Leave blank to
-  just show the ID. Applies immediately — no rebuild.</p>
+  <p class="hint">{{T "wl.rename-hint-1"}}
+  <code>{{.Workload.Name}}</code> {{T "wl.rename-hint-2"}}</p>
   <form method="post" action="/workloads/{{.Workload.Name}}/rename">
-    <label for="display_name">Display name</label>
+    <label for="display_name">{{T "wl.display-name"}}</label>
     <input type="text" id="display_name" name="display_name" value="{{.Workload.DisplayName}}"
            maxlength="60" autocomplete="off">
     <div class="form-actions">
-      <button type="button" data-close-dialog>Cancel</button>
-      <button class="primary">Save</button>
+      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
+      <button class="primary">{{T "common.save"}}</button>
     </div>
   </form>
 </dialog>
 
 <dialog id="destroy-dialog" class="modal modal-danger">
   <div class="modal-head">
-    <h2>Destroy workload</h2>
-    <button type="button" class="modal-close" data-close-dialog aria-label="Close">&times;</button>
+    <h2>{{T "wl.destroy"}}</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
   </div>
   {{if .DataDir}}
-  <p class="hint">Disables the container and rebuilds the system without it.
-  The container's data under <code>{{.DataDir}}</code>
-  is kept unless you check the box below.</p>
+  <p class="hint">{{T "wl.destroy-data-hint-1"}}
+  <code>{{.DataDir}}</code>
+  {{T "wl.destroy-data-hint-2"}}</p>
   {{else}}
-  <p class="hint">Disables the workload and rebuilds the system without it.
-  Any data it keeps elsewhere on disk (podman volumes, service state
-  directories) is left untouched.</p>
+  <p class="hint">{{T "wl.destroy-nodata-hint"}}</p>
   {{end}}
   <form hx-post="/workloads/{{.Workload.Name}}/destroy" hx-target="#job-panel" hx-swap="innerHTML"
         data-close-on-success>
-    <label for="confirm">Type <strong>{{.Workload.Name}}</strong> to confirm</label>
+    <label for="confirm">{{T "wl.confirm-type"}} <strong>{{.Workload.Name}}</strong> {{T "wl.confirm-suffix"}}</label>
     <input type="text" id="confirm" name="confirm" autocomplete="off">
     {{if .DataDir}}
     <label class="checkbox">
-      <input type="checkbox" name="delete_data"> Also delete container data
+      <input type="checkbox" name="delete_data"> {{T "wl.delete-data"}}
     </label>
     {{end}}
     <div class="form-actions">
-      <button type="button" data-close-dialog>Cancel</button>
-      <button class="danger" {{if .Busy}}disabled{{end}}>Destroy</button>
+      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
+      <button class="danger" {{if .Busy}}disabled{{end}}>{{T "wl.destroy-confirm"}}</button>
     </div>
   </form>
 </dialog>

@@ -110,7 +110,15 @@ func (l *Localizer) Lang() string { return l.locale }
 // T returns the message for key, formatted with fmt.Sprintf when args
 // are supplied. A key absent from every catalog returns the key itself.
 func (l *Localizer) T(key string, args ...any) string {
-	msg := key
+	return l.Def(key, key, args...)
+}
+
+// Def is T with an explicit fallback instead of the key: a key absent
+// from every catalog returns def. Used for strings whose English source
+// of truth lives in Go (e.g. the workload-type registry), so catalogs
+// only need entries for locales that override them.
+func (l *Localizer) Def(key, def string, args ...any) string {
+	msg := def
 	for _, cat := range l.catalogs {
 		if m, ok := cat[key]; ok {
 			msg = m

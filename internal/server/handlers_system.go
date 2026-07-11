@@ -22,7 +22,7 @@ type systemData struct {
 
 func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 	data := systemData{
-		baseData: s.base(r, "System", "system"),
+		baseData: s.base(r, s.t(r, "nav.system"), "system"),
 		Busy:     s.jobs.Busy(),
 		DryRun:   s.cfg.DryRun,
 	}
@@ -45,7 +45,7 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleRebuild(w http.ResponseWriter, r *http.Request) {
 	job, err := s.startApply(nil, nix.ModeSwitch)
 	if errors.Is(err, jobs.ErrBusy) {
-		http.Error(w, "a job is already running", http.StatusConflict)
+		http.Error(w, s.t(r, "err.busy"), http.StatusConflict)
 		return
 	}
 	if err != nil {
@@ -75,7 +75,7 @@ func (s *Server) handlePoweroff(w http.ResponseWriter, r *http.Request) {
 // fragment so the flow can be exercised without taking the machine down.
 func (s *Server) handlePower(w http.ResponseWriter, r *http.Request, action string) {
 	if s.jobs.Busy() {
-		http.Error(w, "a job is already running", http.StatusConflict)
+		http.Error(w, s.t(r, "err.busy"), http.StatusConflict)
 		return
 	}
 	if !s.cfg.DryRun {
@@ -161,7 +161,7 @@ func (s *Server) startApply(workloadID *int64, mode nix.RebuildMode) (*store.Job
 func (s *Server) handleJobLogFragment(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Error(w, "bad job id", http.StatusBadRequest)
+		http.Error(w, s.t(r, "err.bad-job"), http.StatusBadRequest)
 		return
 	}
 	job, err := s.store.JobByID(id)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -45,7 +46,7 @@ type newWorkloadData struct {
 func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
 	sel := workloadType(nix.WorkloadTypeContainer) // default selection
 	s.renderPage(w, r, "workload_new", newWorkloadData{
-		baseData:  s.base(r, "New workload", "dashboard"),
+		baseData:  s.base(r, s.t(r, "new.title"), "dashboard"),
 		Types:     nix.RegisteredTypes(),
 		Selected:  sel,
 		Templates: sel.Templates,
@@ -75,7 +76,7 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	fail := func(msg string) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		s.renderPage(w, r, "workload_new", newWorkloadData{
-			baseData:    s.base(r, "New workload", "dashboard"),
+			baseData:    s.base(r, s.t(r, "new.title"), "dashboard"),
 			Types:       nix.RegisteredTypes(),
 			Selected:    wt,
 			Templates:   wt.Templates,
@@ -86,7 +87,7 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !typeOK {
-		fail("unknown workload type")
+		fail(s.t(r, "err.unknown-type"))
 		return
 	}
 	if err := wt.ValidateName(name); err != nil {
@@ -99,11 +100,11 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 	}
 	tmpl, ok := wt.TemplateByID(tmplID)
 	if !ok {
-		fail("unknown template")
+		fail(s.t(r, "err.unknown-template"))
 		return
 	}
 	if _, err := s.store.WorkloadByName(name); err == nil {
-		fail(fmt.Sprintf("a workload named %q already exists", name))
+		fail(s.t(r, "err.name-exists", name))
 		return
 	} else if !errors.Is(err, store.ErrNotFound) {
 		httpError(w, err, http.StatusInternalServerError)
@@ -218,7 +219,7 @@ func (s *Server) handleWorkloadSave(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "workload", "save-result", map[string]string{"Error": err.Error()})
 		return
 	}
-	s.render(w, r, "workload", "save-result", map[string]string{"Flash": "Saved."})
+	s.render(w, r, "workload", "save-result", map[string]string{"Flash": s.t(r, "flash.saved")})
 }
 
 // handleWorkloadValidate runs the quick eval check on the saved file.
@@ -235,7 +236,7 @@ func (s *Server) handleWorkloadValidate(w http.ResponseWriter, r *http.Request) 
 		s.render(w, r, "workload", "save-result", map[string]string{"Error": err.Error()})
 		return
 	}
-	s.render(w, r, "workload", "save-result", map[string]string{"Flash": "Expression parses and evaluates."})
+	s.render(w, r, "workload", "save-result", map[string]string{"Flash": s.t(r, "flash.validated")})
 }
 
 func (s *Server) handleWorkloadEnable(w http.ResponseWriter, r *http.Request) {
@@ -255,11 +256,11 @@ func (s *Server) setEnabled(w http.ResponseWriter, r *http.Request, enabled bool
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	flash := "Enabled. Apply to make it live."
+	flash := s.t(r, "flash.enabled")
 	if !enabled {
-		flash = "Disabled. Apply to remove it from the system."
+		flash = s.t(r, "flash.disabled")
 	}
-	http.Redirect(w, r, "/workloads/"+wl.Name+"?flash="+flash, http.StatusSeeOther)
+	http.Redirect(w, r, "/workloads/"+wl.Name+"?flash="+url.QueryEscape(flash), http.StatusSeeOther)
 }
 
 // handleWorkloadRename sets the optional friendly display name. Metadata
@@ -279,7 +280,7 @@ func (s *Server) handleWorkloadRename(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/workloads/"+wl.Name+"?flash=Renamed.", http.StatusSeeOther)
+	http.Redirect(w, r, "/workloads/"+wl.Name+"?flash="+url.QueryEscape(s.t(r, "flash.renamed")), http.StatusSeeOther)
 }
 
 // handleWorkloadApply rebuilds the system (attributed to this workload
@@ -295,7 +296,7 @@ func (s *Server) handleWorkloadApply(w http.ResponseWriter, r *http.Request) {
 	}
 	job, err := s.startApply(&wl.ID, mode)
 	if errors.Is(err, jobs.ErrBusy) {
-		http.Error(w, "a job is already running", http.StatusConflict)
+		http.Error(w, s.t(r, "err.busy"), http.StatusConflict)
 		return
 	}
 	if err != nil {
@@ -312,7 +313,7 @@ func (s *Server) handleWorkloadRestore(w http.ResponseWriter, r *http.Request) {
 	}
 	revID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
 	if err != nil {
-		http.Error(w, "bad revision id", http.StatusBadRequest)
+		http.Error(w, s.t(r, "err.bad-revision"), http.StatusBadRequest)
 		return
 	}
 	revs, err := s.store.Revisions(wl.ID)
@@ -340,7 +341,7 @@ func (s *Server) handleWorkloadRestore(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/workloads/"+wl.Name+"?flash=Restored revision "+strconv.FormatInt(revID, 10)+".", http.StatusSeeOther)
+	http.Redirect(w, r, "/workloads/"+wl.Name+"?flash="+url.QueryEscape(s.t(r, "flash.restored", revID)), http.StatusSeeOther)
 }
 
 // handleWorkloadDestroy disables the workload and rebuilds without it;
@@ -353,7 +354,7 @@ func (s *Server) handleWorkloadDestroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if r.FormValue("confirm") != wl.Name {
-		http.Error(w, "confirmation name does not match", http.StatusUnprocessableEntity)
+		http.Error(w, s.t(r, "err.confirm-mismatch"), http.StatusUnprocessableEntity)
 		return
 	}
 	deleteData := r.FormValue("delete_data") == "on"
@@ -395,7 +396,7 @@ func (s *Server) handleWorkloadDestroy(w http.ResponseWriter, r *http.Request) {
 		return jobs.Result{ExitCode: 0, Generation: gen}, nil
 	})
 	if errors.Is(err, jobs.ErrBusy) {
-		http.Error(w, "a job is already running", http.StatusConflict)
+		http.Error(w, s.t(r, "err.busy"), http.StatusConflict)
 		return
 	}
 	if err != nil {

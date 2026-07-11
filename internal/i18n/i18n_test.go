@@ -73,6 +73,16 @@ func TestTranslateArgs(t *testing.T) {
 	}
 }
 
+func TestDef(t *testing.T) {
+	b := testBundle(t)
+	if got := b.Localizer("de").Def("greet", "fallback"); got != "Hallo" {
+		t.Errorf("Def with present key = %q, want Hallo", got)
+	}
+	if got := b.Localizer("de").Def("nope", "fallback %d", 7); got != "fallback 7" {
+		t.Errorf("Def with missing key = %q, want %q", got, "fallback 7")
+	}
+}
+
 func TestParseAcceptLanguage(t *testing.T) {
 	tests := []struct {
 		header string

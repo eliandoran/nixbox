@@ -25,7 +25,10 @@ type workloadView struct {
 }
 
 // workloadGroup buckets workloads of the same type under one sidebar heading.
+// Type is the raw type ID (for the catalog key); Label the registry's
+// English label, used as the TDef fallback in the template.
 type workloadGroup struct {
+	Type      string
 	Label     string
 	Workloads []workloadView
 }
@@ -49,7 +52,7 @@ func groupWorkloads(views []workloadView) []workloadGroup {
 		if !ok {
 			i = len(groups)
 			index[v.Type] = i
-			groups = append(groups, workloadGroup{Label: workloadTypeLabel(v.Type)})
+			groups = append(groups, workloadGroup{Type: v.Type, Label: workloadTypeLabel(v.Type)})
 		}
 		groups[i].Workloads = append(groups[i].Workloads, v)
 	}
@@ -62,7 +65,7 @@ type dashboardData struct {
 }
 
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
-	data := dashboardData{baseData: s.base(r, "Dashboard", "dashboard")}
+	data := dashboardData{baseData: s.base(r, s.t(r, "nav.dashboard"), "dashboard")}
 	data.Host = s.hostInfo()
 	s.renderPage(w, r, "dashboard", data)
 }
