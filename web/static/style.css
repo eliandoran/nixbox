@@ -537,4 +537,6 @@ pre.log {
   padding: 8px;
   overflow: hidden;
 }
+/* Embedded in the workload detail page alongside other sections. */
+.terminal.terminal-inline { height: 26rem; }
 .terminal-section .hint { margin-left: 0.75rem; font-weight: normal; }

@@ -24,6 +24,8 @@ type workloadDetail struct {
 	Running               bool
 	DataDir               string // data path deleted on destroy-with-data; "" if the type has none
 	SupportsInsideJournal bool
+	TerminalEnabled       bool // NIXBOX_TERMINAL is set
+	HasShell              bool // this workload type advertises a shell (ShellArgs)
 	Revisions             []store.Revision
 	Busy                  bool
 	Flash                 string
@@ -141,6 +143,8 @@ func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (worklo
 		Busy:                  s.jobs.Busy(),
 		DataDir:               wt.DataDir(wl.Name),
 		SupportsInsideJournal: wt.SupportsInsideJournal,
+		TerminalEnabled:       s.cfg.EnableTerminal,
+		HasShell:              wt.ShellArgs != nil,
 	}
 	data.Active = wl.Name // sidebar highlight matches on the ID
 

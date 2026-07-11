@@ -79,6 +79,13 @@ in
     hostAttr = "testhost";
   };
 
+  # Enable the web terminal in the disposable dev VM so container shells can
+  # be exercised against real running containers. Merges into the service's
+  # environment set from the module. Deliberately NOT a production module
+  # option: a live root shell has no auth yet (milestone 4), so it stays a
+  # dev-only opt-in.
+  systemd.services.nixbox.environment.NIXBOX_TERMINAL = "1";
+
   # Seed the guest's writable /etc/nixos and the nixbox state flake
   # before nixbox starts, so the first Apply in the UI just works.
   systemd.services.dev-vm-bootstrap = {

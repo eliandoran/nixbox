@@ -102,6 +102,21 @@
   </div>
 </section>
 
+{{if and .TerminalEnabled .HasShell}}
+<section>
+  <div class="section-head">
+    <h2>Terminal</h2>
+    <button type="button" class="primary" id="wl-terminal-btn" data-terminal-open="wl-terminal">Open shell</button>
+  </div>
+  <p class="hint">Opens an interactive shell inside <code>{{.Workload.Name}}</code>.
+  {{if not .Running}}The container must be running first.{{end}}</p>
+  <link rel="stylesheet" href="/static/xterm.css">
+  <div id="wl-terminal" class="terminal terminal-inline"
+       data-terminal-ws="/events/workloads/{{.Workload.Name}}/terminal" hidden></div>
+  <script src="/static/xterm.js" defer></script>
+</section>
+{{end}}
+
 <section>
   <h2>Revisions</h2>
   {{if .Revisions}}

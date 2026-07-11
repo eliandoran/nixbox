@@ -3,6 +3,11 @@
 // web/static/xterm.js (+ xterm.css); source excluded from the Go/Nix
 // build exactly like the CodeMirror bundle.
 //
+// Two mount modes, both reading the ws path from `data-terminal-ws`:
+//   - #terminal            → auto-connects on load (the full-page host shell)
+//   - [data-terminal-open] → a button that reveals + connects its target
+//                            terminal element on click (the per-workload shell)
+//
 // Wire protocol (must match serveTerminal):
 //   keystrokes  → binary frames (UTF-8 bytes)
 //   shell output → binary frames, fed straight to xterm (it decodes UTF-8,
@@ -12,7 +17,14 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-function open(el) {
+// openSession connects `el` to its WebSocket and wires a live xterm into
+// it. Any previous session on the same element is torn down first, so it
+// is safe to call again to reconnect. `onClose` fires when the socket
+// closes (peer gone, shell exited, or start failure).
+function openSession(el, onClose) {
+  if (el._teardown) el._teardown();
+  el.innerHTML = "";
+
   const term = new Terminal({
     cursorBlink: true,
     fontSize: 13,
@@ -35,6 +47,14 @@ function open(el) {
     }
   };
 
+  let done = false;
+  const finish = (msg) => {
+    if (done) return;
+    done = true;
+    term.write(msg);
+    if (onClose) onClose();
+  };
+
   ws.onopen = () => {
     sendResize();
     term.focus();
@@ -42,14 +62,12 @@ function open(el) {
   ws.onmessage = (ev) => {
     term.write(ev.data instanceof ArrayBuffer ? new Uint8Array(ev.data) : ev.data);
   };
-  ws.onclose = () => term.write("\r\n\x1b[31m[session closed]\x1b[0m\r\n");
-  ws.onerror = () => term.write("\r\n\x1b[31m[connection error]\x1b[0m\r\n");
+  ws.onclose = () => finish("\r\n\x1b[31m[session closed]\x1b[0m\r\n");
+  ws.onerror = () => finish("\r\n\x1b[31m[connection error]\x1b[0m\r\n");
 
-  // Keystrokes as binary frames.
   term.onData((data) => {
     if (ws.readyState === WebSocket.OPEN) ws.send(enc.encode(data));
   });
-  // Keep the PTY window size in sync with the rendered grid.
   term.onResize(sendResize);
   const ro = new ResizeObserver(() => {
     try {
@@ -57,13 +75,40 @@ function open(el) {
     } catch {}
   });
   ro.observe(el);
+
+  el._teardown = () => {
+    ro.disconnect();
+    try {
+      ws.close();
+    } catch {}
+    term.dispose();
+    el._teardown = null;
+  };
 }
 
 function init() {
-  const el = document.getElementById("terminal");
-  if (el && !el.dataset.mounted) {
-    el.dataset.mounted = "1";
-    open(el);
+  // Full-page host terminal: connect immediately.
+  const host = document.getElementById("terminal");
+  if (host && host.dataset.terminalWs && !host.dataset.mounted) {
+    host.dataset.mounted = "1";
+    openSession(host);
+  }
+
+  // Button-driven terminals (per workload): reveal + connect on click, and
+  // offer a reconnect once the session ends.
+  for (const btn of document.querySelectorAll("[data-terminal-open]")) {
+    if (btn.dataset.wired) continue;
+    btn.dataset.wired = "1";
+    const el = document.getElementById(btn.dataset.terminalOpen);
+    if (!el) continue;
+    btn.addEventListener("click", () => {
+      el.hidden = false;
+      btn.disabled = true;
+      openSession(el, () => {
+        btn.disabled = false;
+        btn.textContent = "Reconnect";
+      });
+    });
   }
 }
 
