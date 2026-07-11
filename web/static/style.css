@@ -255,6 +255,13 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 button.primary { background: var(--accent); color: var(--on-accent); font-weight: 600; border: none; }
 button.primary:hover { filter: brightness(1.1); }
 
+/* Disabled form controls read as inert everywhere — dimmed like disabled
+   buttons, with a not-allowed cursor. Covers the read-only name field in
+   the Secrets edit modal and any future disabled input. */
+input:disabled,
+textarea:disabled,
+select:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .empty { color: var(--muted); }
 
 table.jobs { width: 100%; border-collapse: collapse; }
