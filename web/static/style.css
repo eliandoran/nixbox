@@ -285,20 +285,6 @@ table.jobs th { color: var(--muted); font-weight: 500; font-size: 0.82rem; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-/* Compact per-container usage tiles on the workload page. */
-.stat-row { display: flex; gap: 0.75rem; margin: 0.5rem 0 1rem; flex-wrap: wrap; }
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 110px;
-  padding: 0.5rem 0.9rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-.stat-label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
-.stat-value { font-size: 1.15rem; font-variant-numeric: tabular-nums; }
 
 table.metrics-table td { font-variant-numeric: tabular-nums; }
 table.metrics-table tbody tr[data-href] { cursor: pointer; }
@@ -312,6 +298,16 @@ table.metrics-table td:first-child a {
   text-decoration: none;
 }
 table.metrics-table td:first-child a:hover { color: var(--accent); }
+
+/* Full-width container-usage card below the Host/Load grid. Align the table
+   flush to the card's padding and drop the trailing row rule so it reads as
+   a finished card rather than a loose table. */
+.usage-card { margin-top: 1rem; }
+.usage-card table.jobs th:first-child,
+.usage-card table.jobs td:first-child { padding-left: 0; }
+.usage-card table.jobs th:last-child,
+.usage-card table.jobs td:last-child { padding-right: 0; }
+.usage-card table.jobs tr:last-child td { border-bottom: none; }
 
 .log-card { margin-top: 1rem; padding: 0; overflow: hidden; }
 .log-head {

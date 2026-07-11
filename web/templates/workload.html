@@ -7,8 +7,6 @@
       <button type="button" class="rename-btn" data-open-dialog="rename-dialog" aria-label="Rename" title="Rename">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
       </button>
-      {{if .Workload.DisplayName}}<span class="badge" title="workload ID"><code>{{.Workload.Name}}</code></span>{{end}}
-      <span class="badge">{{.Workload.Type}}</span>
       <span class="badge state-{{.State}}">{{.State}}</span>
       {{if .Workload.Enabled}}<span class="badge badge-on">enabled</span>{{else}}<span class="badge">disabled</span>{{end}}
       {{if .Ports}}<span class="port-chips">{{range .Ports}}<span class="port-chip">:{{.Port}}{{if eq .Proto "udp"}}/udp{{end}}</span>{{end}}</span>{{end}}
@@ -30,12 +28,22 @@
       {{end}}
     </div>
   </div>
-  <p class="hint">systemd: {{.Status}}</p>
-
-  <div class="stat-row" id="workload-metrics" data-name="{{.Workload.Name}}">
-    <div class="stat"><span class="stat-label">CPU</span><span class="stat-value" id="wm-cpu">—</span></div>
-    <div class="stat"><span class="stat-label">Memory</span><span class="stat-value" id="wm-mem">—</span></div>
-    <div class="stat"><span class="stat-label">Tasks</span><span class="stat-value" id="wm-tasks">—</span></div>
+  <div class="cards">
+    <div class="card">
+      <h2>Resource usage</h2>
+      <dl id="workload-metrics" data-name="{{.Workload.Name}}">
+        <dt>CPU</dt><dd id="wm-cpu">—</dd>
+        <dt>Memory</dt><dd id="wm-mem">—</dd>
+        <dt>Tasks</dt><dd id="wm-tasks">—</dd>
+      </dl>
+    </div>
+    <div class="card">
+      <h2>Details</h2>
+      <dl>
+        <dt>ID</dt><dd><code>{{.Workload.Name}}</code></dd>
+        <dt>Type</dt><dd>{{.Workload.Type}}</dd>
+      </dl>
+    </div>
   </div>
 
   {{if .Flash}}<div class="banner banner-ok">{{.Flash}}</div>{{end}}
