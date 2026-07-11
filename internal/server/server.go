@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
+	"slices"
 
 	"github.com/elian/nixbox/internal/config"
 	"github.com/elian/nixbox/internal/i18n"
@@ -57,6 +59,7 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
+	s.mux.HandleFunc("POST /lang", s.handleSetLang)
 	s.mux.HandleFunc("GET /partials/workloads", s.handleWorkloadList)
 	s.mux.HandleFunc("GET /workloads/new", s.handleWorkloadNew)
 	s.mux.HandleFunc("GET /partials/workload-fields", s.handleWorkloadFields)
@@ -185,16 +188,52 @@ type baseData struct {
 	HostAttr       string
 	Active         string // name of the currently-viewed workload (sidebar highlight)
 	WorkloadGroups []workloadGroup
+	Lang           string         // resolved locale, marks the picker's selection
+	Locales        []localeOption // loaded catalogs, for the language picker
+}
+
+// localeOption is one language-picker entry: the locale code and its
+// self-description ("locale.name" from its own catalog).
+type localeOption struct {
+	Code string
+	Name string
 }
 
 func (s *Server) base(r *http.Request, title, nav string) baseData {
 	b := baseData{Title: title, Nav: nav, HostAttr: s.cfg.HostAttr}
+	b.Lang = s.localizer(r).Lang()
+	for _, code := range s.i18n.Locales() {
+		b.Locales = append(b.Locales, localeOption{Code: code, Name: s.i18n.Name(code)})
+	}
 	views, err := s.workloadViews(r)
 	if err != nil {
 		slog.Error("loading sidebar workloads", "err", err)
 	}
 	b.WorkloadGroups = groupWorkloads(views)
 	return b
+}
+
+// handleSetLang stores the picked UI locale in the nixbox-lang cookie
+// (the same one s.localizer consults) and returns to the page the picker
+// was on. Unknown locales are ignored so the picker can't set junk.
+func (s *Server) handleSetLang(w http.ResponseWriter, r *http.Request) {
+	if lang := r.FormValue("lang"); slices.Contains(s.i18n.Locales(), lang) {
+		http.SetCookie(w, &http.Cookie{
+			Name: "nixbox-lang", Value: lang, Path: "/",
+			MaxAge: 365 * 24 * 60 * 60, SameSite: http.SameSiteLaxMode,
+		})
+	}
+	// Go back to the referring page, keeping only its path and query (no
+	// cross-origin redirect) and dropping any ?lang= override, which
+	// outranks the cookie and would pin the old language.
+	back := "/"
+	if ref, err := url.Parse(r.Referer()); err == nil && ref.Path != "" {
+		q := ref.Query()
+		q.Del("lang")
+		ref.RawQuery = q.Encode()
+		back = ref.RequestURI()
+	}
+	http.Redirect(w, r, back, http.StatusSeeOther)
 }
 
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page, block string, data any) {

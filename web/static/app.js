@@ -331,6 +331,15 @@ document.addEventListener("htmx:afterRequest", (ev) => {
   if (ev.detail.successful) form.closest("dialog")?.close();
 });
 
+// Language picker: picking a locale submits the topbar form, which sets
+// the nixbox-lang cookie and redirects back (a full reload re-renders
+// everything in the new language). Works without JS via Enter-to-submit.
+document.addEventListener("change", (ev) => {
+  if (ev.target instanceof Element && ev.target.matches(".lang-select")) {
+    ev.target.form?.requestSubmit();
+  }
+});
+
 // Theme toggle: an explicit light/dark choice is stored in localStorage and
 // mirrored on <html data-theme>; with nothing stored, CSS follows the OS.
 document.addEventListener("click", (ev) => {

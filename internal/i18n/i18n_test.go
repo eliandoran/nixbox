@@ -73,6 +73,26 @@ func TestTranslateArgs(t *testing.T) {
 	}
 }
 
+func TestName(t *testing.T) {
+	fsys := fstest.MapFS{
+		"i18n/en.json": {Data: []byte(`{"locale.name":"English"}`)},
+		"i18n/de.json": {Data: []byte(`{}`)},
+	}
+	b, err := Load(fsys, "i18n")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if got := b.Name("en"); got != "English" {
+		t.Errorf("Name(en) = %q, want English", got)
+	}
+	if got := b.Name("de"); got != "de" {
+		t.Errorf("Name(de) = %q, want code fallback de (not English)", got)
+	}
+	if got := b.Name("xx"); got != "xx" {
+		t.Errorf("Name(xx) = %q, want xx", got)
+	}
+}
+
 func TestDef(t *testing.T) {
 	b := testBundle(t)
 	if got := b.Localizer("de").Def("greet", "fallback"); got != "Hallo" {

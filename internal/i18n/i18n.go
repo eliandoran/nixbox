@@ -62,6 +62,19 @@ func (b *Bundle) Locales() []string {
 	return out
 }
 
+// Name returns a locale's self-description — the "locale.name" entry of
+// its own catalog (e.g. "English", "Română") — falling back to the code.
+// Deliberately not Localizer-based: the fallback chain would answer with
+// the default locale's name for a catalog missing the key.
+func (b *Bundle) Name(locale string) string {
+	if cat, ok := b.catalogs[normalize(locale)]; ok {
+		if n, ok := cat["locale.name"]; ok {
+			return n
+		}
+	}
+	return locale
+}
+
 // Localizer builds a Localizer for the given preferred locales, most
 // preferred first (e.g. from a cookie then Accept-Language then the
 // server default). Each is matched exactly, then by base language; the

@@ -60,6 +60,8 @@
   "job.title": "Job #%d",
   "js.no-enabled-containers": "Niciun container activat.",
   "js.unsaved-changes": "Modificări nesalvate — salvați mai întâi",
+  "locale.name": "Română",
+  "layout.language": "Limbă",
   "layout.new": "Nou",
   "layout.no-workloads": "Niciun workload încă.",
   "layout.theme-toggle": "Comută tema",

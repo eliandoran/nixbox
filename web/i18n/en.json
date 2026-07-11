@@ -60,6 +60,8 @@
   "job.title": "Job #%d",
   "js.no-enabled-containers": "No enabled containers.",
   "js.unsaved-changes": "Unsaved changes — save first",
+  "locale.name": "English",
+  "layout.language": "Language",
   "layout.new": "New",
   "layout.no-workloads": "No workloads yet.",
   "layout.theme-toggle": "Toggle theme",

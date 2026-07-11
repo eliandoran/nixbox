@@ -102,6 +102,18 @@ a:hover { text-decoration: underline; }
   border-radius: 999px;
 }
 
+.lang-form { display: flex; }
+.lang-select {
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 0.3rem 0.4rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.lang-select:hover { color: var(--text); background: var(--surface-2); }
+.lang-select option { background: var(--surface); color: var(--text); }
+
 .theme-toggle {
   display: flex;
   background: none;
@@ -597,11 +609,12 @@ pre.log {
 }
 
 /* Web terminal (xterm.js host shell). Fixed height so FitAddon has a box
-   to measure; the dark theme is set in JS to match a console. */
+   to measure; the dark theme is set in JS to match a console. No border or
+   radius of its own — on the workload tab the .tabpanel card already frames
+   it, and a second rounded box inside reads as a weird outer shell. The
+   padding is dark like the terminal, just breathing room for the glyphs. */
 .terminal {
   height: 72vh;
-  border: 1px solid var(--border);
-  border-radius: 10px;
   background: #0b0e14;
   padding: 8px;
   overflow: hidden;
