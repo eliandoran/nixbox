@@ -24,6 +24,19 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+      # Cache /nix/store (go toolchain, pam, esbuild, the vendored-Go FOD)
+      # in GitHub's Actions cache, keyed on the nix inputs, so runs don't
+      # re-download from cache.nixos.org. Prefix-matched, so this job and
+      # the package job warm each other.
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', 'flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
+
       # Run the Go checks inside the devShell: it already carries the go
       # toolchain, esbuild, libpam (the PAM backend is cgo) and
       # NIXBOX_PAM_TEST_MODULES for the real-PAM tests — so CI needs no
@@ -54,6 +67,15 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
+
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', 'flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+          purge: true
+          purge-prefixes: nix-${{ runner.os }}-
+          purge-created: 0
+          purge-primary-key: never
 
       - name: build package
         run: nix build .#nixbox --print-build-logs
