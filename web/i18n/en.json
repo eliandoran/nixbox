@@ -86,7 +86,7 @@
   "nav.system": "System",
   "nav.terminal": "Terminal",
   "new.create": "Create",
-  "new.display-hint": "A friendly label for the UI. Free-form; the ID is prefilled from it until edited by hand.",
+  "new.display-hint": "A free-form label for the UI; the ID is prefilled from it.",
   "new.draft-hint": "The workload is created as a draft: it only becomes part of the system after you enable it and apply.",
   "new.optional": "(optional)",
   "new.template": "Template",

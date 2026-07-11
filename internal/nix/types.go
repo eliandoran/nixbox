@@ -219,7 +219,7 @@ func init() {
 		ValidateName:          validateContainerName,
 		NamePattern:           `[a-z0-9]([a-z0-9-]{0,9}[a-z0-9])?`,
 		NameMaxLen:            11,
-		NameHint:              "1–11 characters of a-z 0-9 - (systemd-nspawn network interface limit). Used in URLs, on disk, and as the container's systemd identity — can't be changed later.",
+		NameHint:              "1–11 chars of a-z 0-9 - (network interface limit). Permanent — used in URLs, on disk, and in systemd.",
 		SupportsInsideJournal: true,
 		SupportsSecretMounts:  true,
 		UnitName:              func(name string) string { return "container@" + name + ".service" },
@@ -247,7 +247,7 @@ func init() {
 		ValidateName: ValidateName, // shared rule (1-63) is the OCI rule
 		NamePattern:  `[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?`,
 		NameMaxLen:   63,
-		NameHint:     "1–63 characters of a-z 0-9 -. Used in URLs, on disk, and as the podman container and unit name — can't be changed later.",
+		NameHint:     "1–63 chars of a-z 0-9 -. Permanent — used in URLs, on disk, and as the podman unit name.",
 		// An OCI container runs one process and logs to its host unit; it
 		// has no in-container journald to read.
 		SupportsInsideJournal: false,
@@ -282,9 +282,8 @@ func init() {
 		ValidateName: ValidateName, // shared rule; the name is only a label + unit convention
 		NamePattern:  `[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?`,
 		NameMaxLen:   63,
-		NameHint: "1–63 characters of a-z 0-9 -. Used in URLs and on disk. Status and logs " +
-			"track the systemd unit <name>.service by convention — name the workload after " +
-			"its main unit (e.g. \"jellyfin\") to get them.",
+		NameHint: "1–63 chars of a-z 0-9 -. Permanent. Status and logs track " +
+			"<name>.service — name it after its main unit (e.g. \"jellyfin\").",
 		// Uncontained: it logs wherever its units log; there is no inner
 		// journal distinct from the host's.
 		SupportsInsideJournal: false,
