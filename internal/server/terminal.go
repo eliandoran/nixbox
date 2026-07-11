@@ -26,6 +26,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"os/user"
+	"strings"
 
 	"github.com/coder/websocket"
 	"github.com/creack/pty"
@@ -53,11 +55,30 @@ func (s *Server) handleTerminalPage(w http.ResponseWriter, r *http.Request) {
 // handleHostTerminal opens an interactive login shell on the host and
 // bridges it to the browser. This is the SSH-like console.
 func (s *Server) handleHostTerminal(w http.ResponseWriter, r *http.Request) {
-	shell := os.Getenv("SHELL")
-	if shell == "" {
-		shell = "/bin/sh"
+	s.serveTerminal(w, r, []string{loginShell(), "-l"})
+}
+
+// loginShell resolves the process user's login shell from /etc/passwd —
+// the same source login/sshd use — falling back to $SHELL, then /bin/sh.
+// $SHELL alone is not trusted first because wrapper environments repoint
+// it: nix develop / direnv set it to stdenv's non-interactive bash, which
+// is built without readline and renders PS1's \[ \] prompt markers
+// literally (the "leaking escapes" bug in dev mode).
+func loginShell() string {
+	if u, err := user.Current(); err == nil {
+		if data, err := os.ReadFile("/etc/passwd"); err == nil {
+			for line := range strings.Lines(string(data)) {
+				f := strings.Split(strings.TrimSpace(line), ":")
+				if len(f) >= 7 && f[2] == u.Uid && f[6] != "" {
+					return f[6]
+				}
+			}
+		}
 	}
-	s.serveTerminal(w, r, []string{shell, "-l"})
+	if sh := os.Getenv("SHELL"); sh != "" {
+		return sh
+	}
+	return "/bin/sh"
 }
 
 // handleWorkloadTerminal opens a shell inside a running workload, using

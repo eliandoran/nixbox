@@ -13,15 +13,17 @@ import (
 	"github.com/elian/nixbox/internal/config"
 )
 
-// TestTerminalPoC drives the host-shell WebSocket end to end: it dials the
-// handler, sends a resize control frame and a shell command as keystrokes,
-// and asserts the command's output comes back over the socket. This
-// exercises the full transport + PTY path without a browser.
+// TestTerminalPoC drives the shell WebSocket end to end: it dials the
+// transport with a fixed /bin/sh (deterministic, no login banner — the
+// host handler's login-shell resolution is machine-specific), sends a
+// resize control frame and a shell command as keystrokes, and asserts the
+// command's output comes back over the socket. This exercises the full
+// transport + PTY path without a browser.
 func TestTerminalPoC(t *testing.T) {
-	t.Setenv("SHELL", "/bin/sh") // deterministic, no login banner
-
 	s := &Server{cfg: config.Config{EnableTerminal: true}}
-	srv := httptest.NewServer(http.HandlerFunc(s.handleHostTerminal))
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.serveTerminal(w, r, []string{"/bin/sh"})
+	}))
 	defer srv.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
