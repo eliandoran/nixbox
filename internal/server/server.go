@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"sync"
 
 	"filippo.io/age"
 
@@ -31,8 +32,14 @@ type Server struct {
 	pipeline *nix.Pipeline
 	machines *machine.Manager
 	mux      *http.ServeMux
-	pages    map[string]*template.Template
-	i18n     *i18n.Bundle
+
+	// mu guards pages and i18n, which dev mode rebuilds per request
+	// (loadCatalogs/parseTemplates) while other requests read them. In
+	// prod they are set once in New before serving and never change.
+	mu    sync.RWMutex
+	pages map[string]*template.Template
+	i18n  *i18n.Bundle
+
 	// loadRecipient resolves the age recipient secrets are encrypted to;
 	// secret.LoadRecipient in production, swappable in tests.
 	loadRecipient func(path string) (age.Recipient, error)
@@ -133,8 +140,18 @@ func (s *Server) loadCatalogs() error {
 	if err != nil {
 		return err
 	}
+	s.mu.Lock()
 	s.i18n = b
+	s.mu.Unlock()
 	return nil
+}
+
+// bundle returns the current message catalog under the read lock, so a
+// dev-mode reload swapping s.i18n can't race a request reading it.
+func (s *Server) bundle() *i18n.Bundle {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.i18n
 }
 
 // i18nFuncs are the template funcs backed by a localizer: T looks up a
@@ -157,7 +174,7 @@ func (s *Server) t(r *http.Request, key string, args ...any) string {
 // defaultLocalizer resolves the server's configured default locale. Used
 // only to satisfy parse-time func binding; requests use s.localizer.
 func (s *Server) defaultLocalizer() *i18n.Localizer {
-	return s.i18n.Localizer(s.cfg.Lang)
+	return s.bundle().Localizer(s.cfg.Lang)
 }
 
 // localizer resolves the locale for a request, most-preferred first: an
@@ -174,7 +191,7 @@ func (s *Server) localizer(r *http.Request) *i18n.Localizer {
 	}
 	prefs = append(prefs, i18n.ParseAcceptLanguage(r.Header.Get("Accept-Language"))...)
 	prefs = append(prefs, s.cfg.Lang)
-	return s.i18n.Localizer(prefs...)
+	return s.bundle().Localizer(prefs...)
 }
 
 // parseTemplates builds one template set per page (layout + page), so
@@ -186,14 +203,20 @@ func (s *Server) parseTemplates() error {
 	pages := []string{"dashboard", "system", "workload", "workload_new", "flakes", "secrets", "terminal"}
 	src := s.assetFS()
 	funcs := i18nFuncs(s.defaultLocalizer())
-	s.pages = make(map[string]*template.Template, len(pages))
+	// Build into a local map and publish it in one assignment, so a
+	// concurrent request never sees a half-built map (or races the writes
+	// into it, which the runtime aborts as "concurrent map writes").
+	m := make(map[string]*template.Template, len(pages))
 	for _, name := range pages {
 		t, err := template.New(name).Funcs(funcs).ParseFS(src, "templates/layout.html", "templates/"+name+".html")
 		if err != nil {
 			return err
 		}
-		s.pages[name] = t
+		m[name] = t
 	}
+	s.mu.Lock()
+	s.pages = m
+	s.mu.Unlock()
 	return nil
 }
 
@@ -219,8 +242,9 @@ type localeOption struct {
 func (s *Server) base(r *http.Request, title, nav string) baseData {
 	b := baseData{Title: title, Nav: nav, HostAttr: s.cfg.HostAttr}
 	b.Lang = s.localizer(r).Lang()
-	for _, code := range s.i18n.Locales() {
-		b.Locales = append(b.Locales, localeOption{Code: code, Name: s.i18n.Name(code)})
+	bundle := s.bundle()
+	for _, code := range bundle.Locales() {
+		b.Locales = append(b.Locales, localeOption{Code: code, Name: bundle.Name(code)})
 	}
 	views, err := s.workloadViews(r)
 	if err != nil {
@@ -234,7 +258,7 @@ func (s *Server) base(r *http.Request, title, nav string) baseData {
 // (the same one s.localizer consults) and returns to the page the picker
 // was on. Unknown locales are ignored so the picker can't set junk.
 func (s *Server) handleSetLang(w http.ResponseWriter, r *http.Request) {
-	if lang := r.FormValue("lang"); slices.Contains(s.i18n.Locales(), lang) {
+	if lang := r.FormValue("lang"); slices.Contains(s.bundle().Locales(), lang) {
 		http.SetCookie(w, &http.Cookie{
 			Name: "nixbox-lang", Value: lang, Path: "/",
 			MaxAge: 365 * 24 * 60 * 60, SameSite: http.SameSiteLaxMode,
@@ -264,7 +288,9 @@ func (s *Server) render(w http.ResponseWriter, r *http.Request, page, block stri
 			return
 		}
 	}
+	s.mu.RLock()
 	base, ok := s.pages[page]
+	s.mu.RUnlock()
 	if !ok {
 		http.Error(w, "unknown page "+page, http.StatusInternalServerError)
 		return
