@@ -30,6 +30,8 @@ import {
   indentOnInput,
   indentUnit,
   bracketMatching,
+  foldGutter,
+  foldKeymap,
 } from "@codemirror/language";
 import { tags as t } from "@lezer/highlight";
 import { nix } from "@replit/codemirror-lang-nix";
@@ -70,6 +72,20 @@ const theme = EditorView.theme({
   },
   ".cm-content": { padding: "0.9rem 0", caretColor: "var(--text)" },
   ".cm-gutters": { backgroundColor: "var(--surface)", color: "var(--muted)", border: "none" },
+  // Fold gutter: dim the toggles until the gutter is hovered, then let the
+  // active one brighten — keeps the arrows from competing with line numbers.
+  ".cm-foldGutter .cm-gutterElement": { color: "var(--muted)", opacity: "0.45", transition: "opacity 0.15s" },
+  "&:hover .cm-foldGutter .cm-gutterElement": { opacity: "0.8" },
+  ".cm-foldGutter .cm-gutterElement:hover": { color: "var(--text)", opacity: "1" },
+  // Placeholder shown in place of a collapsed range.
+  ".cm-foldPlaceholder": {
+    backgroundColor: "var(--surface-2)",
+    color: "var(--muted)",
+    border: "1px solid var(--border)",
+    borderRadius: "4px",
+    margin: "0 2px",
+    padding: "0 4px",
+  },
   // drawSelection() paints the selection in a layer CM stacks *behind* the
   // content, so an opaque active-line fill would hide it. Keep the line fill
   // translucent so the selection shows through on the active line; the gutter
@@ -134,9 +150,13 @@ export function mount(textarea) {
         drawSelection(),
         indentOnInput(),
         bracketMatching(),
+        // Fold gutter — the Nix grammar tags brace/bracket/paren blocks with
+        // foldNodeProp, so `{ … }`, `[ … ]`, and `( … )` spans get a
+        // collapse toggle in the gutter (foldGutter pulls in codeFolding()).
+        foldGutter(),
         indentUnit.of("  "),
         EditorState.tabSize.of(2),
-        keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+        keymap.of([...defaultKeymap, ...historyKeymap, ...foldKeymap, indentWithTab]),
         saveKey,
         nix(),
         // Completion for Nix keywords, builtins, and snippets, supplied by
