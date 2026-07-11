@@ -38,7 +38,7 @@ func (s *Server) handleSystem(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-	s.renderPage(w, "system", data)
+	s.renderPage(w, r, "system", data)
 }
 
 // handleRebuild starts an apply job and returns the live log fragment.
@@ -52,7 +52,7 @@ func (s *Server) handleRebuild(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	s.render(w, "system", "job-log", job)
+	s.render(w, r, "system", "job-log", job)
 }
 
 // powerResult drives the fragment shown after a reboot/poweroff request.
@@ -91,7 +91,7 @@ func (s *Server) handlePower(w http.ResponseWriter, r *http.Request, action stri
 			return
 		}
 	}
-	s.render(w, "system", "power-result", powerResult{Action: action, DryRun: s.cfg.DryRun})
+	s.render(w, r, "system", "power-result", powerResult{Action: action, DryRun: s.cfg.DryRun})
 }
 
 // startApply regenerates the index and launches a rebuild job. On a
@@ -154,7 +154,7 @@ func (s *Server) handleJobLogFragment(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	s.render(w, "system", "job-log", job)
+	s.render(w, r, "system", "job-log", job)
 }
 
 func (s *Server) regenerateIndex() error {

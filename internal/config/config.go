@@ -25,6 +25,10 @@ type Config struct {
 	// on a browser refresh without recompiling. Off in production,
 	// where everything is served from the embedded FS.
 	Dev bool
+	// Lang is the default UI locale, used when a request expresses no
+	// preference (no cookie, no matching Accept-Language). Falls back to
+	// English if the catalog is missing.
+	Lang string
 }
 
 func FromEnv() Config {
@@ -35,6 +39,7 @@ func FromEnv() Config {
 		HostAttr:  envOr("NIXBOX_HOST_ATTR", hostname()),
 		DryRun:    os.Getenv("NIXBOX_DRY_RUN") != "",
 		Dev:       os.Getenv("NIXBOX_DEV") != "",
+		Lang:      envOr("NIXBOX_LANG", "en"),
 	}
 	return cfg
 }

@@ -42,7 +42,7 @@ type newWorkloadData struct {
 
 func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
 	sel := workloadType(nix.WorkloadTypeContainer) // default selection
-	s.renderPage(w, "workload_new", newWorkloadData{
+	s.renderPage(w, r, "workload_new", newWorkloadData{
 		baseData:  s.base(r, "New workload", "dashboard"),
 		Types:     nix.RegisteredTypes(),
 		Selected:  sel,
@@ -55,7 +55,7 @@ func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
 // radios swap it in via HTMX so the fields track the chosen type.
 func (s *Server) handleWorkloadFields(w http.ResponseWriter, r *http.Request) {
 	sel := workloadType(r.URL.Query().Get("type"))
-	s.render(w, "workload_new", "workload-type-fields", newWorkloadData{
+	s.render(w, r, "workload_new", "workload-type-fields", newWorkloadData{
 		Selected:  sel,
 		Templates: sel.Templates,
 	})
@@ -72,7 +72,7 @@ func (s *Server) handleWorkloadCreate(w http.ResponseWriter, r *http.Request) {
 
 	fail := func(msg string) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
-		s.renderPage(w, "workload_new", newWorkloadData{
+		s.renderPage(w, r, "workload_new", newWorkloadData{
 			baseData:    s.base(r, "New workload", "dashboard"),
 			Types:       nix.RegisteredTypes(),
 			Selected:    wt,
@@ -130,7 +130,7 @@ func (s *Server) handleWorkloadDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data.Flash = r.URL.Query().Get("flash")
-	s.renderPage(w, "workload", data)
+	s.renderPage(w, r, "workload", data)
 }
 
 func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (workloadDetail, error) {
@@ -197,7 +197,7 @@ func (s *Server) handleWorkloadSave(w http.ResponseWriter, r *http.Request) {
 	// save so content and ports stay in one atomic revision.
 	ports, err := nix.ParseHostPorts(r.Form["port"], r.Form["proto"])
 	if err != nil {
-		s.render(w, "workload", "save-result", map[string]string{"Error": err.Error()})
+		s.render(w, r, "workload", "save-result", map[string]string{"Error": err.Error()})
 		return
 	}
 
@@ -211,10 +211,10 @@ func (s *Server) handleWorkloadSave(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := nix.CheckSyntax(r.Context(), s.workloadFile(wl.Name)); err != nil {
-		s.render(w, "workload", "save-result", map[string]string{"Error": err.Error()})
+		s.render(w, r, "workload", "save-result", map[string]string{"Error": err.Error()})
 		return
 	}
-	s.render(w, "workload", "save-result", map[string]string{"Flash": "Saved."})
+	s.render(w, r, "workload", "save-result", map[string]string{"Flash": "Saved."})
 }
 
 // handleWorkloadValidate runs the quick eval check on the saved file.
@@ -224,14 +224,14 @@ func (s *Server) handleWorkloadValidate(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := nix.CheckSyntax(r.Context(), s.workloadFile(wl.Name)); err != nil {
-		s.render(w, "workload", "save-result", map[string]string{"Error": err.Error()})
+		s.render(w, r, "workload", "save-result", map[string]string{"Error": err.Error()})
 		return
 	}
 	if err := nix.CheckEval(r.Context(), s.workloadFile(wl.Name)); err != nil {
-		s.render(w, "workload", "save-result", map[string]string{"Error": err.Error()})
+		s.render(w, r, "workload", "save-result", map[string]string{"Error": err.Error()})
 		return
 	}
-	s.render(w, "workload", "save-result", map[string]string{"Flash": "Expression parses and evaluates."})
+	s.render(w, r, "workload", "save-result", map[string]string{"Flash": "Expression parses and evaluates."})
 }
 
 func (s *Server) handleWorkloadEnable(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +298,7 @@ func (s *Server) handleWorkloadApply(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	s.render(w, "workload", "job-log", job)
+	s.render(w, r, "workload", "job-log", job)
 }
 
 func (s *Server) handleWorkloadRestore(w http.ResponseWriter, r *http.Request) {
@@ -398,7 +398,7 @@ func (s *Server) handleWorkloadDestroy(w http.ResponseWriter, r *http.Request) {
 		httpError(w, err, http.StatusInternalServerError)
 		return
 	}
-	s.render(w, "workload", "job-log", job)
+	s.render(w, r, "workload", "job-log", job)
 }
 
 func (s *Server) handleWorkloadLifecycle(w http.ResponseWriter, r *http.Request) {
@@ -420,7 +420,7 @@ func (s *Server) handleWorkloadLifecycle(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if err != nil {
-		s.render(w, "workload", "save-result", map[string]string{"Error": err.Error()})
+		s.render(w, r, "workload", "save-result", map[string]string{"Error": err.Error()})
 		return
 	}
 	http.Redirect(w, r, "/workloads/"+wl.Name, http.StatusSeeOther)

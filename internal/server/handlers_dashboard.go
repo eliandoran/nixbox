@@ -64,7 +64,7 @@ type dashboardData struct {
 func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	data := dashboardData{baseData: s.base(r, "Dashboard", "dashboard")}
 	data.Host = s.hostInfo()
-	s.renderPage(w, "dashboard", data)
+	s.renderPage(w, r, "dashboard", data)
 }
 
 // handleWorkloadList is the HTMX polling target that refreshes the sidebar
@@ -77,7 +77,7 @@ func (s *Server) handleWorkloadList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data := baseData{Active: r.URL.Query().Get("active"), WorkloadGroups: groupWorkloads(views)}
-	s.render(w, "dashboard", "workload-list", data)
+	s.render(w, r, "dashboard", "workload-list", data)
 }
 
 func (s *Server) workloadViews(r *http.Request) ([]workloadView, error) {
