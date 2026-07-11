@@ -28,9 +28,12 @@
             golangci-lint
             sqlite
             just
-            # For regenerating web/static/codemirror.js (see web/editor).
+            # esbuild bundles web/src → web/static/app.js (`just bundle`/`just
+            # dev`) and, with nodejs, the committed web/editor npm bundles
+            # (codemirror.js, xterm.js). tsc type-checks web/src (`just typecheck`).
             nodejs
             esbuild
+            typescript
           ];
         };
       });

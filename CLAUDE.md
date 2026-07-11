@@ -19,6 +19,14 @@ go test ./... -cover                              # per-package coverage (check 
 go test ./internal/nix -run TestWriteIndex        # single test
 nix build .#nixbox                                # package (update vendorHash in nix/package.nix when go.mod changes)
 
+# App JS — TypeScript in web/src, bundled by esbuild to web/static/app.js
+# (a gitignored build product, NOT committed). Bundle once after a fresh
+# checkout or any web/src edit — go build/vet/test fail on the missing
+# go:embed until then. `just dev` bundles + watches automatically, and
+# the nix package bundles in preBuild, so neither needs this by hand:
+just bundle       # = esbuild web/src/main.ts --bundle --format=iife --outfile=web/static/app.js
+just typecheck    # tsc -p web — esbuild only strips types, it never checks them
+
 # CodeMirror Nix editor bundle — vendored build product, committed at
 # web/static/codemirror.js and embedded via //go:embed. Regenerate only
 # when the editor source or its deps change (needs nodejs + esbuild from
@@ -146,11 +154,17 @@ exceptions (validation, journalctl) are read-only and documented at their
 call sites.
 
 **Web layer**: server-rendered `html/template`, one template set per page
-(layout + page) in `internal/server/server.go`; HTMX for partial swaps +
-vanilla-JS EventSource for SSE (`web/static/app.js`); all assets embedded via
-`web/embed.go` — no CDN, no build step. Shared fragments (`job-log`,
-`workload-list`) live in `layout.html`. Every page's data embeds `baseData`
-(which carries the sidebar workload list).
+(layout + page) in `internal/server/server.go`; HTMX for partial swaps + a
+small TypeScript layer (`web/src`, one module per feature, entry `main.ts`)
+whose modules attach delegated listeners and activate on markup presence —
+one bundle serves every page and keeps working inside HTMX-swapped fragments.
+esbuild bundles it to `web/static/app.js`, a *gitignored build product*
+(`just bundle`, the `just dev` watcher, or nix preBuild — never committed;
+`tsc -p web` is the type checker, esbuild never checks). All assets embedded
+via `web/embed.go` — no CDN, and no npm for app code (the committed
+`codemirror.js`/`xterm.js` bundles stay npm-built under `web/editor`).
+Shared fragments (`job-log`, `workload-list`) live in `layout.html`. Every
+page's data embeds `baseData` (which carries the sidebar workload list).
 
 **i18n** (`internal/i18n`, catalogs in `web/i18n/<locale>.json`): every
 user-facing string goes through `{{T "key"}}` in templates or `s.t(r, key)` in

@@ -1,4 +1,4 @@
-{ lib, buildGoModule }:
+{ lib, buildGoModule, esbuild }:
 
 buildGoModule {
   pname = "nixbox";
@@ -17,6 +17,14 @@ buildGoModule {
   vendorHash = "sha256-gwY10YMMUCLGen8jfcqBzZmlEcTz2YJepIQotHVwHF8=";
 
   subPackages = [ "cmd/nixbox" ];
+
+  # web/static/app.js is a build product (gitignored, so never part of
+  # the flake source): bundle the TypeScript in web/src before the Go
+  # build embeds it. Same invocation as `just bundle`.
+  nativeBuildInputs = [ esbuild ];
+  preBuild = ''
+    esbuild web/src/main.ts --bundle --format=iife --outfile=web/static/app.js
+  '';
 
   ldflags = [ "-s" "-w" ];
 
