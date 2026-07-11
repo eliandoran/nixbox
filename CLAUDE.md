@@ -114,6 +114,21 @@ vanilla-JS EventSource for SSE (`web/static/app.js`); all assets embedded via
 `workload-list`) live in `layout.html`. Every page's data embeds `baseData`
 (which carries the sidebar workload list).
 
+**i18n** (`internal/i18n`, catalogs in `web/i18n/<locale>.json`): every
+user-facing string goes through `{{T "key"}}` in templates or `s.t(r, key)` in
+handlers — never a literal. `en.json` is the source of truth; other locales
+fall back requested → base language → en → the key itself. Strings whose
+English lives in Go (workload-type registry labels, template names) use
+`{{TDef key fallback}}` instead, so en.json never duplicates them. `FuncMap`
+binds at parse time, so `render` clones the page template per request to
+rebind T to the request's locale (resolved `?lang=` → `nixbox-lang` cookie,
+set by the topbar picker via `POST /lang` → `Accept-Language` → `NIXBOX_LANG`).
+The two JS-rendered strings travel as translated `<body data-msg-*>`
+attributes. Adding a locale = drop in `<code>.json` with a `locale.name`
+entry; `TestCatalogCoverage` (internal/server) fails on missing, dead, or
+typoed keys in any catalog. Job logs, systemd states, and nix errors stay
+untranslated by design.
+
 ## Domain constraints
 
 - Workload names: shared `nix.ValidateName` is a path-safety rule (`[a-z0-9-]`,
