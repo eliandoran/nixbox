@@ -34,7 +34,7 @@ func (s *Server) handleWorkloadLogs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 
 	inside := r.URL.Query().Get("source") == "container"
-	cmd := machine.JournalCommand(r.Context(), wl.Name, inside)
+	cmd := machine.JournalCommand(r.Context(), workloadType(wl.Type), wl.Name, inside)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		httpError(w, err, http.StatusInternalServerError)
@@ -118,12 +118,12 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		host := metrics.Sample(diskPath)
 
-		names, err := s.enabledWorkloadNames()
+		refs, err := s.enabledWorkloadRefs()
 		if err != nil {
 			httpError(w, err, http.StatusInternalServerError)
 			return
 		}
-		usages, _ := s.machines.Usages(r.Context(), names) // absent → zeroed below
+		usages, _ := s.machines.Usages(r.Context(), refs) // absent → zeroed below
 
 		sample := metricsSample{Host: hostMetrics{
 			Load1: host.Load1, Load5: host.Load5, Load15: host.Load15,
@@ -137,8 +137,9 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 			sample.Host.CPUPct = &pct
 		}
 
-		curCPU := make(map[string]uint64, len(names))
-		for _, name := range names {
+		curCPU := make(map[string]uint64, len(refs))
+		for _, ref := range refs {
+			name := ref.Name
 			u := usages[name]
 			curCPU[name] = u.CPUNSec
 			cm := containerMetrics{
@@ -196,7 +197,7 @@ func (s *Server) handleWorkloadMetrics(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		now := time.Now()
-		usages, _ := s.machines.Usages(r.Context(), []string{wl.Name})
+		usages, _ := s.machines.Usages(r.Context(), []machine.Ref{{Type: workloadType(wl.Type), Name: wl.Name}})
 		u := usages[wl.Name]
 
 		m := containerMetrics{

@@ -1,6 +1,6 @@
 {{define "content"}}
 <section class="narrow">
-  <h2>New container</h2>
+  <h2>New workload</h2>
 
   {{if .Error}}<div class="banner banner-error">{{.Error}}</div>{{end}}
 
@@ -10,12 +10,40 @@
            maxlength="60" autocomplete="off" autofocus>
     <p class="hint">A friendly label for the UI. Free-form; leave blank to just use the ID below.</p>
 
+    <label>Type</label>
+    <div class="template-picker">
+      {{range .Types}}
+      <label class="template-option">
+        <input type="radio" name="type" value="{{.ID}}" {{if eq .ID $.Selected.ID}}checked{{end}}
+               hx-get="/partials/workload-fields?type={{.ID}}" hx-target="#type-fields" hx-swap="innerHTML">
+        <div>
+          <strong>{{.Label}}</strong>
+        </div>
+      </label>
+      {{end}}
+    </div>
+
+    <div id="type-fields">
+      {{template "workload-type-fields" .}}
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="primary">Create</button>
+      <a href="/" class="button-link">Cancel</a>
+    </div>
+  </form>
+
+  <p class="hint">The workload is created as a draft: it only becomes part of the
+  system after you enable it and apply.</p>
+</section>
+{{end}}
+
+{{define "workload-type-fields"}}
     <label for="name">ID</label>
     <input type="text" id="name" name="name" value="{{.Name}}" required
-           pattern="[a-z0-9]([a-z0-9-]{0,9}[a-z0-9])?" maxlength="11"
+           pattern="{{.Selected.NamePattern}}" maxlength="{{.Selected.NameMaxLen}}"
            autocomplete="off">
-    <p class="hint">1–11 characters of <code>a-z 0-9 -</code> (systemd-nspawn network interface limit).
-    Used in URLs, on disk, and as the container's systemd identity — can't be changed later.</p>
+    <p class="hint">{{.Selected.NameHint}}</p>
 
     <label>Template</label>
     <div class="template-picker">
@@ -29,14 +57,4 @@
       </label>
       {{end}}
     </div>
-
-    <div class="form-actions">
-      <button type="submit" class="primary">Create</button>
-      <a href="/" class="button-link">Cancel</a>
-    </div>
-  </form>
-
-  <p class="hint">The container is created as a draft: it only becomes part of the
-  system after you enable it and apply.</p>
-</section>
 {{end}}

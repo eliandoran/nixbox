@@ -1,8 +1,10 @@
 package nix
 
 // Template is a starting-point workload expression offered at creation
-// time. The content is the full containers.<name> attrset value, so
-// everything (networking, mounts, autoStart) stays in the user's hands.
+// time. Its shape is type-specific: for a nixos-container the content is
+// the full containers.<name> attrset value, so everything (networking,
+// mounts, autoStart) stays in the user's hands. Each WorkloadType carries
+// its own template set.
 type Template struct {
 	ID          string
 	Name        string
@@ -11,7 +13,9 @@ type Template struct {
 	Ports       []HostPort // host firewall ports to open by default
 }
 
-var Templates = []Template{
+// containerTemplates are offered when creating a nixos-container; the
+// nixos-container WorkloadType references this slice.
+var containerTemplates = []Template{
 	{
 		ID:          "blank",
 		Name:        "Blank",
@@ -71,8 +75,45 @@ var Templates = []Template{
 	},
 }
 
-func TemplateByID(id string) (Template, bool) {
-	for _, t := range Templates {
+// ociTemplates are offered when creating an oci-container; the
+// oci-container WorkloadType references this slice. The content is the
+// value of virtualisation.oci-containers.containers.<name> — a podman
+// container spec — so image/ports/volumes/environment stay in the user's
+// hands. Images are fully qualified because podman does not assume a
+// default registry.
+var ociTemplates = []Template{
+	{
+		ID:          "blank",
+		Name:        "Blank",
+		Description: "A single image kept running by a long-lived command.",
+		Content: `{
+  image = "docker.io/library/alpine:latest";
+  cmd = [ "sh" "-c" "while true; do sleep 3600; done" ];
+
+  # environment = { TZ = "UTC"; };
+  # volumes = [ "mydata:/data" ];
+}
+`,
+	},
+	{
+		ID:          "nginx",
+		Name:        "Web server",
+		Description: "nginx image publishing :8080 on the host via podman.",
+		Content: `{
+  image = "docker.io/library/nginx:stable";
+  # podman publishes host 8080 -> container 80 and installs its own
+  # firewall rules for the mapping, so no Host ports entry is needed. (A
+  # host-networked container — network_mode = "host" — would drop this
+  # mapping and instead need 8080 in Host ports, like a nixos-container.)
+  ports = [ "8080:80" ];
+}
+`,
+	},
+}
+
+// TemplateByID resolves one of this type's templates by ID.
+func (wt WorkloadType) TemplateByID(id string) (Template, bool) {
+	for _, t := range wt.Templates {
 		if t.ID == id {
 			return t, true
 		}

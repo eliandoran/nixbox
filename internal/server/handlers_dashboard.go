@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/elian/nixbox/internal/machine"
 	"github.com/elian/nixbox/internal/nix"
 )
 
@@ -29,14 +30,13 @@ type workloadGroup struct {
 	Workloads []workloadView
 }
 
-// workloadTypeLabel is the sidebar heading shown for a workload type.
+// workloadTypeLabel is the sidebar heading shown for a workload type. An
+// unregistered type (stale row) falls back to its raw ID.
 func workloadTypeLabel(t string) string {
-	switch t {
-	case nix.WorkloadTypeContainer:
-		return "NixOS containers"
-	default:
-		return t
+	if wt, ok := nix.Lookup(t); ok {
+		return wt.Label
 	}
+	return t
 }
 
 // groupWorkloads buckets workloads by type, preserving the order each type
@@ -92,7 +92,7 @@ func (s *Server) workloadViews(r *http.Request) ([]workloadView, error) {
 		case !wl.Enabled:
 			v.State = "disabled"
 		default:
-			st, err := s.machines.Status(r.Context(), wl.Name)
+			st, err := s.machines.Status(r.Context(), workloadType(wl.Type), wl.Name)
 			if err != nil {
 				v.State = "status unavailable"
 			} else {
@@ -105,20 +105,20 @@ func (s *Server) workloadViews(r *http.Request) ([]workloadView, error) {
 	return views, nil
 }
 
-// enabledWorkloadNames lists the names of enabled workloads, in stored
-// order — the set the metrics stream samples resource usage for.
-func (s *Server) enabledWorkloadNames() ([]string, error) {
+// enabledWorkloadRefs lists the enabled workloads as machine refs, in
+// stored order — the set the metrics stream samples resource usage for.
+func (s *Server) enabledWorkloadRefs() ([]machine.Ref, error) {
 	workloads, err := s.store.Workloads()
 	if err != nil {
 		return nil, err
 	}
-	names := make([]string, 0, len(workloads))
+	refs := make([]machine.Ref, 0, len(workloads))
 	for _, wl := range workloads {
 		if wl.Enabled {
-			names = append(names, wl.Name)
+			refs = append(refs, machine.Ref{Type: workloadType(wl.Type), Name: wl.Name})
 		}
 	}
-	return names, nil
+	return refs, nil
 }
 
 func (s *Server) hostInfo() hostInfo {

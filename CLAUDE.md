@@ -108,11 +108,16 @@ vanilla-JS EventSource for SSE (`web/static/app.js`); all assets embedded via
 
 ## Domain constraints
 
-- Container names: `[a-z0-9-]`, max 11 chars (`ve-<name>` veth interface
-  limit) — enforced by `nix.ValidateName`, don't relax it.
-- `workloads.type` exists to add OCI/microvm workloads later: new type = new
-  branch in index generation + new static module in `state/modules/` — no
-  schema change. Only `nixos-container` exists today.
+- Workload names: shared `nix.ValidateName` is a path-safety rule (`[a-z0-9-]`,
+  no leading/trailing `-`, ≤63 chars) — don't relax the charset. Tighter,
+  type-specific caps live in `WorkloadType.ValidateName` (nixos-containers add
+  the 11-char `ve-<name>` veth limit; OCI allows the full 63).
+- Workload types are a registry (`internal/nix/types.go`): each `WorkloadType`
+  owns its index section, static module, templates, name rule, and systemd
+  unit/journal/data-dir funcs. Adding a kind (microvm, …) is one `Register`
+  call plus its module string — no call site branches on the type string, and
+  no schema change (`workloads.type` is free-form TEXT). `nixos-container` and
+  `oci-container` (podman-backed) exist today.
 - Containers without `privateNetwork` share the host's network namespace:
   their ports must be opened in the *host's* firewall (the dev VM opens 8080
   for the nginx template).

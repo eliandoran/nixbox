@@ -15,7 +15,11 @@ MemoryCurrent=[not set]
 CPUUsageNSec=18446744073709551615
 TasksCurrent=[not set]
 `
-	got := parseUsages(out)
+	unitToName := map[string]string{
+		"container@web.service": "web",
+		"container@db.service":  "db",
+	}
+	got := parseUsages(out, unitToName)
 	web, ok := got["web"]
 	if !ok {
 		t.Fatal("missing web")
