@@ -46,7 +46,9 @@
     <div class="field">
       <div class="field-head">
         <span class="field-label">Host ports</span>
-        <span class="hint">Opened on the host firewall for ports this workload publishes on the host. Saved with the config.</span>
+        <span class="hint">Opened on the host firewall — for ports served directly on the host's
+        network stack (nixos-containers, or host-networked OCI). Podman-published ports
+        (<code>ports = [ "8080:80" ]</code>) don't need an entry. Saved with the config.</span>
       </div>
       <div class="port-rows" id="host-ports">
         {{range .Ports}}
