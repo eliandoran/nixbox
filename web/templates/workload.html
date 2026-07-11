@@ -148,21 +148,9 @@
       <button>{{T "wl.secrets-attach"}}</button>
     </form>
     {{end}}
-    <details>
-      <summary>{{T "wl.secrets-new"}}</summary>
-      <form method="post" action="/workloads/{{.Workload.Name}}/secrets" class="form">
-        <label for="wl-secret-name">{{T "secrets.name"}}</label>
-        <input type="text" id="wl-secret-name" name="name" required autocomplete="off"
-               pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" maxlength="63" placeholder="db-pass">
-        <label for="wl-secret-value">{{T "secrets.value"}}</label>
-        <textarea id="wl-secret-value" name="value" rows="2" required
-                  autocomplete="off" spellcheck="false"></textarea>
-        <p class="hint">{{T "wl.secrets-new-hint"}}</p>
-        <div class="form-actions">
-          <button class="primary">{{T "secrets.add"}}</button>
-        </div>
-      </form>
-    </details>
+    <div class="form-actions">
+      <button type="button" data-open-dialog="wl-secret-dialog">{{T "wl.secrets-new"}}</button>
+    </div>
   </div>
   {{end}}
 
@@ -280,6 +268,28 @@
     </div>
   </form>
 </dialog>
+
+{{if .SupportsSecretMounts}}
+<dialog id="wl-secret-dialog" class="modal">
+  <div class="modal-head">
+    <h2>{{T "wl.secrets-new"}}</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
+  </div>
+  <form method="post" action="/workloads/{{.Workload.Name}}/secrets" class="form">
+    <label for="wl-secret-name">{{T "secrets.name"}}</label>
+    <input type="text" id="wl-secret-name" name="name" required autocomplete="off"
+           pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" maxlength="63" placeholder="db-pass">
+    <label for="wl-secret-value">{{T "secrets.value"}}</label>
+    <textarea id="wl-secret-value" name="value" rows="3" required
+              autocomplete="off" spellcheck="false"></textarea>
+    <p class="hint">{{T "wl.secrets-new-hint"}}</p>
+    <div class="form-actions">
+      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
+      <button class="primary">{{T "secrets.add"}}</button>
+    </div>
+  </form>
+</dialog>
+{{end}}
 {{end}}
 
 {{define "save-result"}}
