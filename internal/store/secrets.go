@@ -96,6 +96,40 @@ func (s *Store) UpdateSecret(id int64, owner, group, mode string, workloadIDs []
 	return tx.Commit()
 }
 
+// AddSecretMount delivers the secret into one more workload (the
+// workload-page flow; the Secrets tab replaces the set wholesale). A
+// real change bumps updated_at so the badge flips to pending; adding an
+// existing mount is a no-op.
+func (s *Store) AddSecretMount(secretID, workloadID int64) error {
+	res, err := s.db.Exec(
+		`INSERT OR IGNORE INTO secret_mounts (secret_id, workload_id) VALUES (?, ?)`,
+		secretID, workloadID)
+	if err != nil {
+		return err
+	}
+	return s.touchOnChange(res, secretID)
+}
+
+// RemoveSecretMount stops delivering the secret into a workload. Like
+// AddSecretMount, only a real change flips the badge.
+func (s *Store) RemoveSecretMount(secretID, workloadID int64) error {
+	res, err := s.db.Exec(
+		`DELETE FROM secret_mounts WHERE secret_id = ? AND workload_id = ?`,
+		secretID, workloadID)
+	if err != nil {
+		return err
+	}
+	return s.touchOnChange(res, secretID)
+}
+
+func (s *Store) touchOnChange(res sql.Result, secretID int64) error {
+	n, err := res.RowsAffected()
+	if err != nil || n == 0 {
+		return err
+	}
+	return s.TouchSecret(secretID)
+}
+
 func replaceMounts(tx *sql.Tx, secretID int64, workloadIDs []int64) error {
 	if _, err := tx.Exec(`DELETE FROM secret_mounts WHERE secret_id = ?`, secretID); err != nil {
 		return err

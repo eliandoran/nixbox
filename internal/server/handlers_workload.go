@@ -27,10 +27,15 @@ type workloadDetail struct {
 	SupportsInsideJournal bool
 	TerminalEnabled       bool // NIXBOX_TERMINAL is set
 	HasShell              bool // this workload type advertises a shell (ShellArgs)
-	Revisions             []store.Revision
-	Busy                  bool
-	Flash                 string
-	Error                 string
+	// Secrets pane (types with SupportsSecretMounts): what is delivered
+	// into this workload, and what else exists to attach.
+	SupportsSecretMounts bool
+	MountedSecrets       []store.Secret
+	OtherSecrets         []store.Secret
+	Revisions            []store.Revision
+	Busy                 bool
+	Flash                string
+	Error                string
 }
 
 type newWorkloadData struct {
@@ -133,6 +138,7 @@ func (s *Server) handleWorkloadDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data.Flash = r.URL.Query().Get("flash")
+	data.Error = r.URL.Query().Get("error")
 	s.renderPage(w, r, "workload", data)
 }
 
@@ -174,6 +180,20 @@ func (s *Server) workloadDetailData(r *http.Request, wl *store.Workload) (worklo
 		data.Status = st.ActiveState + " (" + st.SubState + ")"
 	} else {
 		data.Status = "unavailable"
+	}
+
+	if data.SupportsSecretMounts = wt.SupportsSecretMounts; data.SupportsSecretMounts {
+		secrets, err := s.store.Secrets()
+		if err != nil {
+			return data, err
+		}
+		for _, sec := range secrets {
+			if sec.MountedInto(wl.ID) {
+				data.MountedSecrets = append(data.MountedSecrets, sec)
+			} else {
+				data.OtherSecrets = append(data.OtherSecrets, sec)
+			}
+		}
 	}
 
 	data.Revisions, err = s.store.Revisions(wl.ID)

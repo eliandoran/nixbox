@@ -84,3 +84,50 @@ func TestSecretLifecycle(t *testing.T) {
 		t.Errorf("expected ErrNotFound after delete, got %v", err)
 	}
 }
+
+// TestSecretMountAddRemove covers the workload-page flow: single-mount
+// add/remove, idempotence, and the badge only flipping on real change.
+func TestSecretMountAddRemove(t *testing.T) {
+	s := open(t)
+	web, err := s.CreateWorkload("web", "", "nixos-container", "{ }\n", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sec, err := s.CreateSecret("token", "root", "root", "0400", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.MarkSecretApplied(sec.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	// Attach: mount appears, badge reopens.
+	if err := s.AddSecretMount(sec.ID, web.ID); err != nil {
+		t.Fatal(err)
+	}
+	sec, _ = s.SecretByID(sec.ID)
+	if !sec.MountedInto(web.ID) || sec.Status() != "pending" {
+		t.Errorf("after attach: mounts=%v status=%s", sec.WorkloadIDs, sec.Status())
+	}
+
+	// Re-attach is a no-op: applied state must survive.
+	if err := s.MarkSecretApplied(sec.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.AddSecretMount(sec.ID, web.ID); err != nil {
+		t.Fatal(err)
+	}
+	sec, _ = s.SecretByID(sec.ID)
+	if sec.Status() != "applied" {
+		t.Errorf("duplicate attach flipped badge: %s", sec.Status())
+	}
+
+	// Detach: mount gone, badge reopens.
+	if err := s.RemoveSecretMount(sec.ID, web.ID); err != nil {
+		t.Fatal(err)
+	}
+	sec, _ = s.SecretByID(sec.ID)
+	if sec.MountedInto(web.ID) || sec.Status() != "pending" {
+		t.Errorf("after detach: mounts=%v status=%s", sec.WorkloadIDs, sec.Status())
+	}
+}

@@ -76,6 +76,11 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.HandleFunc("POST /workloads/{name}/rename", s.handleWorkloadRename)
 	s.mux.HandleFunc("POST /workloads/{name}/destroy", s.handleWorkloadDestroy)
 	s.mux.HandleFunc("POST /workloads/{name}/revisions/{id}/restore", s.handleWorkloadRestore)
+	// Literal segments outrank the {verb} wildcard below, so these never
+	// reach handleWorkloadLifecycle.
+	s.mux.HandleFunc("POST /workloads/{name}/secrets", s.handleWorkloadSecretCreate)
+	s.mux.HandleFunc("POST /workloads/{name}/secrets/attach", s.handleWorkloadSecretAttach)
+	s.mux.HandleFunc("POST /workloads/{name}/secrets/detach", s.handleWorkloadSecretDetach)
 	s.mux.HandleFunc("POST /workloads/{name}/{verb}", s.handleWorkloadLifecycle)
 	s.mux.HandleFunc("GET /flakes", s.handleFlakeList)
 	s.mux.HandleFunc("POST /flakes", s.handleFlakeCreate)

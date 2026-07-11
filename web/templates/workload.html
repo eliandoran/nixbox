@@ -47,6 +47,7 @@
   </div>
 
   {{if .Flash}}<div class="banner banner-ok">{{.Flash}}</div>{{end}}
+  {{if .Error}}<div class="banner banner-error">{{.Error}}</div>{{end}}
 </section>
 
 <div class="tabs" id="workload-tabs">
@@ -109,6 +110,62 @@
     </div>
   </form>
   <div id="save-result"></div>
+
+  {{if .SupportsSecretMounts}}
+  {{/* Own forms, so it lives outside the editor's save form. */}}
+  <div class="field">
+    <div class="field-head">
+      <span class="field-label">{{T "wl.secrets"}}</span>
+      <span class="hint">{{T "wl.secrets-hint"}}</span>
+    </div>
+    {{if .MountedSecrets}}
+    <table class="jobs">
+      <thead><tr><th>{{T "secrets.name"}}</th><th>{{T "secrets.path"}}</th><th></th><th></th></tr></thead>
+      <tbody>
+        {{range .MountedSecrets}}
+        <tr>
+          <td><strong>{{.Name}}</strong></td>
+          <td><code>/run/agenix/{{.Name}}</code></td>
+          <td><span class="badge state-{{.Status}}">{{T (printf "state.%s" .Status)}}</span></td>
+          <td>
+            <form method="post" action="/workloads/{{$.Workload.Name}}/secrets/detach">
+              <input type="hidden" name="secret" value="{{.Name}}">
+              <button class="port-del" aria-label="{{T "wl.secrets-detach"}}" title="{{T "wl.secrets-detach"}}">&times;</button>
+            </form>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="hint">{{T "wl.secrets-none"}}</p>
+    {{end}}
+    {{if .OtherSecrets}}
+    <form method="post" action="/workloads/{{.Workload.Name}}/secrets/attach" class="port-row">
+      <select name="secret" aria-label="{{T "secrets.name"}}">
+        {{range .OtherSecrets}}<option value="{{.Name}}">{{.Name}}</option>{{end}}
+      </select>
+      <button>{{T "wl.secrets-attach"}}</button>
+    </form>
+    {{end}}
+    <details>
+      <summary>{{T "wl.secrets-new"}}</summary>
+      <form method="post" action="/workloads/{{.Workload.Name}}/secrets">
+        <label for="wl-secret-name">{{T "secrets.name"}}</label>
+        <input type="text" id="wl-secret-name" name="name" required autocomplete="off"
+               pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" maxlength="63" placeholder="db-pass">
+        <label for="wl-secret-value">{{T "secrets.value"}}</label>
+        <textarea id="wl-secret-value" name="value" rows="2" required
+                  autocomplete="off" spellcheck="false"></textarea>
+        <p class="hint">{{T "wl.secrets-new-hint"}}</p>
+        <div class="form-actions">
+          <button class="primary">{{T "secrets.add"}}</button>
+        </div>
+      </form>
+    </details>
+  </div>
+  {{end}}
+
   <div id="job-panel"></div>
   </section>
 

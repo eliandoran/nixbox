@@ -238,6 +238,109 @@ func (s *Server) handleSecretApply(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "secrets", "job-log", job)
 }
 
+// Workload-page secrets pane: the same registry, scoped to one
+// workload. Creation here is the barebones flow — name + value with
+// default identity, pre-delivered into this workload; identity and
+// other deliveries are edited on the Secrets tab.
+
+// secretsWorkload resolves the {name} workload and requires its type to
+// deliver secret mounts (the pane isn't rendered otherwise, so a miss
+// is a hand-crafted request).
+func (s *Server) secretsWorkload(w http.ResponseWriter, r *http.Request) (*store.Workload, bool) {
+	wl, ok := s.lookupWorkload(w, r)
+	if !ok {
+		return nil, false
+	}
+	if wt := workloadType(wl.Type); !wt.SupportsSecretMounts {
+		http.NotFound(w, r)
+		return nil, false
+	}
+	return wl, true
+}
+
+func (s *Server) handleWorkloadSecretCreate(w http.ResponseWriter, r *http.Request) {
+	wl, ok := s.secretsWorkload(w, r)
+	if !ok {
+		return
+	}
+	back := "/workloads/" + wl.Name
+	fail := func(msg string) {
+		http.Redirect(w, r, back+"?error="+url.QueryEscape(msg), http.StatusSeeOther)
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	if err := nix.ValidateName(name); err != nil {
+		fail(err.Error())
+		return
+	}
+	f, errMsg := s.parseSecretForm(r) // no identity fields posted → defaults
+	if errMsg != "" {
+		fail(errMsg)
+		return
+	}
+	if f.Value == "" {
+		fail(s.t(r, "err.value-required"))
+		return
+	}
+	if _, err := s.store.SecretByName(name); err == nil {
+		fail(s.t(r, "err.secret-exists", name))
+		return
+	} else if !errors.Is(err, store.ErrNotFound) {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+	if err := s.encryptSecret(name, f.Value); err != nil {
+		fail(err.Error())
+		return
+	}
+	if _, err := s.store.CreateSecret(name, f.Owner, f.Group, f.Mode, []int64{wl.ID}); err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, back+"?flash="+url.QueryEscape(s.t(r, "flash.secret-added")), http.StatusSeeOther)
+}
+
+func (s *Server) handleWorkloadSecretAttach(w http.ResponseWriter, r *http.Request) {
+	s.setWorkloadSecretMount(w, r, true)
+}
+
+func (s *Server) handleWorkloadSecretDetach(w http.ResponseWriter, r *http.Request) {
+	s.setWorkloadSecretMount(w, r, false)
+}
+
+func (s *Server) setWorkloadSecretMount(w http.ResponseWriter, r *http.Request, attach bool) {
+	wl, ok := s.secretsWorkload(w, r)
+	if !ok {
+		return
+	}
+	back := "/workloads/" + wl.Name
+	secName := r.FormValue("secret")
+	if err := nix.ValidateName(secName); err != nil {
+		http.Redirect(w, r, back+"?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
+		return
+	}
+	sec, err := s.store.SecretByName(secName)
+	if errors.Is(err, store.ErrNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+	flash := s.t(r, "flash.secret-attached")
+	if attach {
+		err = s.store.AddSecretMount(sec.ID, wl.ID)
+	} else {
+		err = s.store.RemoveSecretMount(sec.ID, wl.ID)
+		flash = s.t(r, "flash.secret-detached")
+	}
+	if err != nil {
+		httpError(w, err, http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, back+"?flash="+url.QueryEscape(flash), http.StatusSeeOther)
+}
+
 func (s *Server) lookupSecret(w http.ResponseWriter, r *http.Request) (*store.Secret, bool) {
 	name := r.PathValue("name")
 	if err := nix.ValidateName(name); err != nil {
