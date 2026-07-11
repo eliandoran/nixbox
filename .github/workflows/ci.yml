@@ -17,7 +17,7 @@ jobs:
     name: build, vet & test (Go)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: cachix/install-nix-action@v31
         with:
@@ -30,7 +30,7 @@ jobs:
       # partly-overlapping closures, and GitHub cache keys are immutable —
       # a shared key lets whichever job finishes first win and forces the
       # other to re-fetch its own paths every run.
-      - uses: nix-community/cache-nix-action@v6
+      - uses: nix-community/cache-nix-action@v7
         with:
           primary-key: nix-${{ runner.os }}-devshell-${{ hashFiles('**/*.nix', 'flake.lock') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-devshell-
@@ -45,7 +45,7 @@ jobs:
       # keyed on go.sum, prefix-restored so the build cache survives dep
       # bumps. (The package job's Go deps are already the vendored FOD in
       # /nix/store, so it needs none of this.)
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cache/go-build
@@ -77,7 +77,7 @@ jobs:
     name: package (nix build .#nixbox)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: cachix/install-nix-action@v31
         with:
@@ -87,7 +87,7 @@ jobs:
       # Per-job key (see the devShell job's note): caching the package
       # build's full closure means a repeat run restores the built output
       # path too, so `nix build` is a no-op instead of a ~50s recompile.
-      - uses: nix-community/cache-nix-action@v6
+      - uses: nix-community/cache-nix-action@v7
         with:
           primary-key: nix-${{ runner.os }}-package-${{ hashFiles('**/*.nix', 'flake.lock', 'go.sum') }}
           restore-prefixes-first-match: nix-${{ runner.os }}-package-
