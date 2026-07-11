@@ -14,7 +14,7 @@ buildGoModule {
            || lib.hasPrefix "web/editor/" rel);
   };
 
-  vendorHash = "sha256-fqXpr9fV1jeT7503uAjb4jjNPlXfESFnXr7/Uc83d4o=";
+  vendorHash = "sha256-rpZZVKG81nLIcpntJgIlcOEqgxQ30q+XBnGfkC3VBVs=";
 
   subPackages = [ "cmd/nixbox" ];
 

@@ -60,6 +60,10 @@ type WorkloadType struct {
 	// DataDir is the on-disk state path deleted on destroy-with-data, or
 	// "" when the type keeps no such directory.
 	DataDir func(name string) string
+	// ShellArgs returns the argv (command + args) that opens an interactive
+	// shell inside a running workload, for the web terminal. nil when the
+	// type has no meaningful in-workload shell.
+	ShellArgs func(name string) []string
 }
 
 var (
@@ -173,7 +177,8 @@ func init() {
 			}
 			return []string{"-u", "container@" + name + ".service"}
 		},
-		DataDir: func(name string) string { return "/var/lib/nixos-containers/" + name },
+		DataDir:   func(name string) string { return "/var/lib/nixos-containers/" + name },
+		ShellArgs: func(name string) []string { return []string{"machinectl", "shell", name} },
 	})
 
 	Register(WorkloadType{
@@ -198,5 +203,8 @@ func init() {
 		// per-workload directory nixbox can safely rm -rf; destroy leaves
 		// it to the backend.
 		DataDir: func(string) string { return "" },
+		ShellArgs: func(name string) []string {
+			return []string{"podman", "exec", "-it", name, "/bin/sh"}
+		},
 	})
 }

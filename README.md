@@ -79,10 +79,11 @@ $ just dev
 
 The devShell provides `just` as a command runner (`just --list` shows
 the recipes). `just dev` starts the dry-run server
-(`NIXBOX_DRY_RUN=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve`);
+(`NIXBOX_DRY_RUN=1 NIXBOX_TERMINAL=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve`);
 `NIXBOX_DRY_RUN` logs commands instead of executing them, so the full UI
-can be exercised without touching the system. Real rebuilds should only
-be tested in a VM.
+can be exercised without touching the system, and `NIXBOX_TERMINAL=1`
+enables the web terminal (off by default; it exposes a live shell). Real
+rebuilds should only be tested in a VM.
 
 ### Dev VM (real rebuilds, disposable)
 

@@ -526,3 +526,15 @@ pre.log {
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* Web terminal (xterm.js host shell). Fixed height so FitAddon has a box
+   to measure; the dark theme is set in JS to match a console. */
+.terminal {
+  height: 72vh;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0b0e14;
+  padding: 8px;
+  overflow: hidden;
+}
+.terminal-section .hint { margin-left: 0.75rem; font-weight: normal; }

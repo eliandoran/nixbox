@@ -8,7 +8,7 @@ description: Build, launch, and drive nixbox end-to-end to verify a change again
 ## Launch (safe, no system mutation)
 
 ```bash
-NIXBOX_DRY_RUN=1 NIXBOX_STATE_DIR=./dev-state NIXBOX_LISTEN=127.0.0.1:8471 \
+NIXBOX_DRY_RUN=1 NIXBOX_TERMINAL=1 NIXBOX_STATE_DIR=./dev-state NIXBOX_LISTEN=127.0.0.1:8471 \
   nix develop -c go run ./cmd/nixbox serve
 ```
 

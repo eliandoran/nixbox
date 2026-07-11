@@ -4,7 +4,9 @@
   "description": "CodeMirror 6 Nix editor bundle for nixbox. Build product is committed at web/static/codemirror.js; this source and node_modules are excluded from the Go/Nix build (see nix/package.nix).",
   "type": "module",
   "scripts": {
-    "build": "esbuild index.js --bundle --format=iife --minify --legal-comments=none --outfile=../static/codemirror.js"
+    "build": "npm run build:editor && npm run build:terminal",
+    "build:editor": "esbuild index.js --bundle --format=iife --minify --legal-comments=none --outfile=../static/codemirror.js",
+    "build:terminal": "esbuild terminal.js --bundle --format=iife --minify --legal-comments=none --loader:.css=css --outfile=../static/xterm.js"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.18.0",
@@ -13,7 +15,9 @@
     "@codemirror/state": "^6.4.0",
     "@codemirror/view": "^6.34.0",
     "@lezer/highlight": "^1.2.0",
-    "@replit/codemirror-lang-nix": "^6.0.1"
+    "@replit/codemirror-lang-nix": "^6.0.1",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"

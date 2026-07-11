@@ -24,8 +24,8 @@ nix build .#nixbox                                # package (update vendorHash i
 # the devShell); npm is NOT part of go/nix build. Then commit the result.
 (cd web/editor && npm ci && npm run build)
 
-# Dev server — safe on any machine, full UI works:
-NIXBOX_DRY_RUN=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve
+# Dev server — safe on any machine, full UI works (`just dev` wraps this):
+NIXBOX_DRY_RUN=1 NIXBOX_TERMINAL=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve
 # → http://127.0.0.1:8368 (NIXBOX_LISTEN=127.0.0.1:PORT to change)
 
 # Dev VM — for REAL rebuilds; never test real applies on the host:
@@ -36,6 +36,14 @@ nix build .#vm && ./result/bin/run-testhost-vm
 `NIXBOX_DRY_RUN=1` swaps the command runner for a logger and downgrades
 `nixos-rebuild switch` to `build`; read-only operations (syntax check, eval
 check, journalctl) still run for real by design.
+
+`NIXBOX_TERMINAL=1` exposes the web terminal (an interactive host/workload
+shell over a WebSocket). It is deliberately *not* tied to dry-run — a live
+shell is arbitrary user execution, not a nixbox-issued command dry-run can
+neuter — so it stays behind its own opt-in and is off by default. Enabling it
+is equivalent to publishing a root console; only safe once auth (milestone 4)
+lands. The dev recipe turns it on because it is loopback-bound and runs as the
+dev user.
 
 For UI verification with a real browser (headless Chromium over CDP), follow
 `.claude/skills/verify/SKILL.md`.

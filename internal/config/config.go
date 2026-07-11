@@ -20,6 +20,13 @@ type Config struct {
 	// DryRun makes command runners log instead of execute, and
 	// downgrades `nixos-rebuild switch` to `build`.
 	DryRun bool
+	// EnableTerminal exposes the interactive host/workload shells (the web
+	// terminal). Off by default and orthogonal to DryRun: dry-run governs
+	// whether nixbox mutates the system, whereas a live shell is arbitrary
+	// user execution that dry-run cannot neuter, so it stays behind its own
+	// explicit opt-in. Treat enabling it as handing out a root console —
+	// only safe once auth (milestone 4) exists.
+	EnableTerminal bool
 	// Dev serves static assets and templates live from ./web on disk
 	// (and re-parses templates per request) so JS/CSS/HTML edits show
 	// on a browser refresh without recompiling. Off in production,
@@ -33,13 +40,14 @@ type Config struct {
 
 func FromEnv() Config {
 	cfg := Config{
-		Listen:    envOr("NIXBOX_LISTEN", "127.0.0.1:8368"),
-		StateDir:  envOr("NIXBOX_STATE_DIR", "./dev-state"),
-		HostFlake: envOr("NIXBOX_HOST_FLAKE", "/etc/nixos"),
-		HostAttr:  envOr("NIXBOX_HOST_ATTR", hostname()),
-		DryRun:    os.Getenv("NIXBOX_DRY_RUN") != "",
-		Dev:       os.Getenv("NIXBOX_DEV") != "",
-		Lang:      envOr("NIXBOX_LANG", "en"),
+		Listen:         envOr("NIXBOX_LISTEN", "127.0.0.1:8368"),
+		StateDir:       envOr("NIXBOX_STATE_DIR", "./dev-state"),
+		HostFlake:      envOr("NIXBOX_HOST_FLAKE", "/etc/nixos"),
+		HostAttr:       envOr("NIXBOX_HOST_ATTR", hostname()),
+		DryRun:         os.Getenv("NIXBOX_DRY_RUN") != "",
+		EnableTerminal: os.Getenv("NIXBOX_TERMINAL") != "",
+		Dev:            os.Getenv("NIXBOX_DEV") != "",
+		Lang:           envOr("NIXBOX_LANG", "en"),
 	}
 	return cfg
 }

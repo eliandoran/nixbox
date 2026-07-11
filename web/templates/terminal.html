@@ -1,0 +1,17 @@
+{{define "content"}}
+<section class="terminal-section">
+  <div class="section-head">
+    <h2>Terminal</h2>
+    <span class="hint">Interactive shell on the host. The session ends when you leave this page.</span>
+  </div>
+  {{if .Enabled}}
+  <link rel="stylesheet" href="/static/xterm.css">
+  <div id="terminal" class="terminal" data-terminal-ws="/terminal/ws"></div>
+  <script src="/static/xterm.js" defer></script>
+  {{else}}
+  <div class="banner">The terminal is disabled. Set <code>NIXBOX_TERMINAL=1</code>
+  to expose an interactive shell. Note this hands out a root console with no
+  authentication — only enable it on a trusted, loopback-bound instance.</div>
+  {{end}}
+</section>
+{{end}}

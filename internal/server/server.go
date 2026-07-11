@@ -63,6 +63,7 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.HandleFunc("POST /workloads", s.handleWorkloadCreate)
 	s.mux.HandleFunc("GET /workloads/{name}", s.handleWorkloadDetail)
 	s.mux.HandleFunc("GET /workloads/{name}/logs", s.handleWorkloadLogs)
+	s.mux.HandleFunc("GET /events/workloads/{name}/terminal", s.handleWorkloadTerminal)
 	s.mux.HandleFunc("GET /events/workloads/{name}/metrics", s.handleWorkloadMetrics)
 	s.mux.HandleFunc("POST /workloads/{name}/save", s.handleWorkloadSave)
 	s.mux.HandleFunc("POST /workloads/{name}/validate", s.handleWorkloadValidate)
@@ -78,6 +79,8 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.HandleFunc("POST /flakes/apply", s.handleFlakeApply)
 	s.mux.HandleFunc("POST /flakes/{name}/save", s.handleFlakeSave)
 	s.mux.HandleFunc("POST /flakes/{name}/delete", s.handleFlakeDelete)
+	s.mux.HandleFunc("GET /terminal", s.handleTerminalPage)
+	s.mux.HandleFunc("GET /terminal/ws", s.handleHostTerminal)
 	s.mux.HandleFunc("GET /system", s.handleSystem)
 	s.mux.HandleFunc("POST /system/rebuild", s.handleRebuild)
 	s.mux.HandleFunc("POST /system/reboot", s.handleReboot)
@@ -151,7 +154,7 @@ func (s *Server) localizer(r *http.Request) *i18n.Localizer {
 // clones and rebinds them per request. In dev mode this is re-run on
 // every render so template edits show on a refresh.
 func (s *Server) parseTemplates() error {
-	pages := []string{"dashboard", "system", "workload", "workload_new", "flakes"}
+	pages := []string{"dashboard", "system", "workload", "workload_new", "flakes", "terminal"}
 	src := s.assetFS()
 	funcs := i18nFuncs(s.defaultLocalizer())
 	s.pages = make(map[string]*template.Template, len(pages))

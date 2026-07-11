@@ -2,7 +2,11 @@ module github.com/elian/nixbox
 
 go 1.26.4
 
-require modernc.org/sqlite v1.53.0
+require (
+	github.com/coder/websocket v1.8.15
+	github.com/creack/pty v1.1.24
+	modernc.org/sqlite v1.53.0
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
