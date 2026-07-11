@@ -403,6 +403,31 @@ label.template-option {
 .template-option:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
 .template-option p { margin: 0.1rem 0 0; color: var(--muted); font-size: 0.85rem; }
 
+/* Template picker as a fixed-height list: swapping the workload type
+   changes how many templates there are, and the fixed height keeps the
+   modal from resizing — extra rows scroll. Rows reuse .template-option
+   (hidden radio, focus echo) but trade the card chrome for separators
+   and an inset accent bar on the checked row. */
+.template-list {
+  height: 10rem;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.template-list label.template-option {
+  padding: 0.45rem 0.75rem;
+  border: none;
+  border-radius: 0;
+}
+.template-list .template-option + .template-option { border-top: 1px solid var(--border); }
+.template-list .template-option:hover { background: var(--surface-2); }
+.template-list .template-option:has(input:checked) {
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+/* Inward focus ring: an outward one would clip against the scroll box. */
+.template-list .template-option:has(input:focus-visible) { outline-offset: -2px; }
+
 .form-actions { display: flex; gap: 0.6rem; margin-top: 1rem; align-items: center; }
 
 .button-link {

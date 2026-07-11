@@ -72,14 +72,12 @@
 
 {{define "workload-type-fields"}}
     <label>{{T "new.template"}}</label>
-    <div class="template-picker">
+    <div class="template-list">
       {{range $i, $t := .Templates}}
       <label class="template-option">
         <input type="radio" name="template" value="{{$t.ID}}" {{if eq $i 0}}checked{{end}}>
-        <div>
-          <strong>{{TDef (printf "template.%s.%s.name" $.Selected.ID $t.ID) $t.Name}}</strong>
-          <p>{{TDef (printf "template.%s.%s.description" $.Selected.ID $t.ID) $t.Description}}</p>
-        </div>
+        <strong>{{TDef (printf "template.%s.%s.name" $.Selected.ID $t.ID) $t.Name}}</strong>
+        <span class="hint">{{TDef (printf "template.%s.%s.description" $.Selected.ID $t.ID) $t.Description}}</span>
       </label>
       {{end}}
     </div>
