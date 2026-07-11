@@ -282,8 +282,8 @@ func init() {
 		ValidateName: ValidateName, // shared rule; the name is only a label + unit convention
 		NamePattern:  `[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?`,
 		NameMaxLen:   63,
-		NameHint: "1–63 chars of a-z 0-9 -. Permanent. Status and logs track " +
-			"<name>.service — name it after its main unit (e.g. \"jellyfin\").",
+		NameHint: "1–63 chars of a-z 0-9 -. Permanent. Name it after the service's " +
+			"main systemd unit (e.g. \"jellyfin\").",
 		// Uncontained: it logs wherever its units log; there is no inner
 		// journal distinct from the host's.
 		SupportsInsideJournal: false,
