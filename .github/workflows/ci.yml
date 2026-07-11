@@ -24,6 +24,18 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # The PAM auth backend is cgo and needs libpam's headers to compile
+      # (build/vet/test all fail without them, same as the devShell note).
+      # Also point the real-PAM tests at the system pam_permit/pam_deny
+      # modules — located dynamically so a multiarch path change can't
+      # silently downgrade them to a skip — mirroring NIXBOX_PAM_TEST_MODULES
+      # from the devShell.
+      - name: install libpam (cgo PAM backend)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpam0g-dev
+          echo "NIXBOX_PAM_TEST_MODULES=$(dirname "$(dpkg -L libpam-modules | grep -m1 /pam_permit.so)")" >> "$GITHUB_ENV"
+
       # web/static/app.js is a gitignored esbuild product, so a fresh
       # checkout lacks it and the go:embed in web/embed.go fails to build.
       # Bundle it first, same invocation as `just bundle` / the nix preBuild.
