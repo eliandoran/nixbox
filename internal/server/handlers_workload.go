@@ -370,13 +370,13 @@ func (s *Server) handleWorkloadDestroy(w http.ResponseWriter, r *http.Request) {
 
 	name, id := wl.Name, wl.ID
 	job, err := s.jobs.Start(store.JobApply, &wl.ID, func(ctx context.Context, log io.Writer) (jobs.Result, error) {
-		fmt.Fprintf(log, "==> destroying container %s\n", name)
+		fmt.Fprintf(log, "==> destroying workload %s\n", name)
 		if _, err := s.pipeline.Runner.Stream(ctx, log, "systemctl", "stop", wt.UnitName(name)); err != nil {
-			fmt.Fprintf(log, "note: stop failed (container may not be running): %v\n", err)
+			fmt.Fprintf(log, "note: stop failed (workload may not be running): %v\n", err)
 		}
 		code, gen, err := s.pipeline.Rebuild(ctx, log, nix.ModeSwitch)
 		if err != nil || code != 0 {
-			fmt.Fprintf(log, "rebuild failed; container kept (disabled)\n")
+			fmt.Fprintf(log, "rebuild failed; workload kept (disabled)\n")
 			return jobs.Result{ExitCode: code, Generation: gen}, err
 		}
 		if err := s.store.DeleteWorkload(id); err != nil {
@@ -391,7 +391,7 @@ func (s *Server) handleWorkloadDestroy(w http.ResponseWriter, r *http.Request) {
 				return jobs.Result{ExitCode: -1, Generation: gen}, err
 			}
 		}
-		fmt.Fprintf(log, "==> container %s destroyed\n", name)
+		fmt.Fprintf(log, "==> workload %s destroyed\n", name)
 		return jobs.Result{ExitCode: 0, Generation: gen}, nil
 	})
 	if errors.Is(err, jobs.ErrBusy) {

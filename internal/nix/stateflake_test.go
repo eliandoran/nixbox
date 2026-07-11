@@ -30,6 +30,8 @@ func TestInitIdempotent(t *testing.T) {
   };
   ociContainers = {
   };
+  hostServices = {
+  };
   hostPorts = {
     tcp = [ ];
     udp = [ ];
@@ -49,8 +51,9 @@ func TestWriteIndex(t *testing.T) {
 	entries := []IndexEntry{
 		{Name: "zeta", Type: WorkloadTypeContainer},
 		{Name: "alpha", Type: WorkloadTypeContainer},
-		{Name: "web", Type: WorkloadTypeOCI}, // OCI: its own section
-		{Name: "ghost", Type: "microvm"},     // unregistered: excluded
+		{Name: "web", Type: WorkloadTypeOCI},              // OCI: its own section
+		{Name: "jellyfin", Type: WorkloadTypeHostService}, // uncontained: its own section
+		{Name: "ghost", Type: "microvm"},                  // unregistered: excluded
 	}
 	if err := f.WriteIndex(entries); err != nil {
 		t.Fatal(err)
@@ -67,6 +70,9 @@ func TestWriteIndex(t *testing.T) {
   };
   ociContainers = {
     web = ./workloads/web/workload.nix;
+  };
+  hostServices = {
+    jellyfin = ./workloads/jellyfin/workload.nix;
   };
   hostPorts = {
     tcp = [ ];
@@ -113,6 +119,8 @@ func TestWriteIndexHostPorts(t *testing.T) {
   };
   ociContainers = {
     app = ./workloads/app/workload.nix;
+  };
+  hostServices = {
   };
   hostPorts = {
     tcp = [ 443 8080 9999 ];

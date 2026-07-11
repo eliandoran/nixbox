@@ -43,6 +43,17 @@ func TestCheckEval(t *testing.T) {
 		t.Errorf("function workload: %v", err)
 	}
 
+	// Host-service workload written as an ordinary module function: the
+	// stub args come from its own pattern, and references through them
+	// (pkgs.hello) stay lazy under attrNames.
+	mod := `{ config, pkgs, lib, ... }: {
+  services.jellyfin.enable = true;
+  environment.systemPackages = [ pkgs.hello ];
+}`
+	if err := CheckEval(ctx, writeNix(t, mod)); err != nil {
+		t.Errorf("module-function workload: %v", err)
+	}
+
 	// A real eval error must still be reported.
 	if err := CheckEval(ctx, writeNix(t, `{ x = undefinedVariable; y = x; }`)); err == nil {
 		// x is lazy, so force an error at the top level instead.

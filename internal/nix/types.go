@@ -18,6 +18,10 @@ type WorkloadType struct {
 	ID string
 	// Label is the sidebar heading grouping workloads of this type.
 	Label string
+	// Description is the one-line blurb shown under the type in the create
+	// form's picker — what the type is, plus any caveat worth reading
+	// before choosing it (e.g. host-service runs uncontained).
+	Description string
 
 	// IndexKey is the attribute in the generated index.nix holding this
 	// type's name→path map (e.g. "containers"). Its static module reads
@@ -157,8 +161,10 @@ func validateContainerName(name string) error {
 
 func init() {
 	Register(WorkloadType{
-		ID:                    WorkloadTypeContainer,
-		Label:                 "NixOS containers",
+		ID:    WorkloadTypeContainer,
+		Label: "NixOS containers",
+		Description: "A declarative NixOS system in a lightweight systemd-nspawn " +
+			"container — isolated processes and filesystem, own NixOS config.",
 		IndexKey:              "containers",
 		ModuleFile:            "modules/nixos-container.nix",
 		Module:                nixosContainerModule,
@@ -182,8 +188,10 @@ func init() {
 	})
 
 	Register(WorkloadType{
-		ID:           WorkloadTypeOCI,
-		Label:        "OCI containers",
+		ID:    WorkloadTypeOCI,
+		Label: "OCI containers",
+		Description: "A Docker/OCI image run by podman — for software shipped " +
+			"as a container image rather than a NixOS module.",
 		IndexKey:     "ociContainers",
 		ModuleFile:   "modules/oci-container.nix",
 		Module:       ociContainerModule,
@@ -206,5 +214,42 @@ func init() {
 		ShellArgs: func(name string) []string {
 			return []string{"podman", "exec", "-it", name, "/bin/sh"}
 		},
+	})
+
+	Register(WorkloadType{
+		ID:    WorkloadTypeHostService,
+		Label: "Host services",
+		Description: "A NixOS module applied directly to the host — no container. " +
+			"Uncontained: whatever it declares (services, users, mounts) lands on " +
+			"the host system itself.",
+		IndexKey: "hostServices",
+		// No static module: a host-service workload is itself a NixOS module
+		// imported at the system level, and its imports may reference flake
+		// inputs — which only the generated flake output can supply (module
+		// args are unusable in `imports`). renderFlake splices this type's
+		// index section into nixosModules.default directly.
+		ModuleFile:   "",
+		Templates:    hostServiceTemplates,
+		ValidateName: ValidateName, // shared rule; the name is only a label + unit convention
+		NamePattern:  `[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?`,
+		NameMaxLen:   63,
+		NameHint: "1–63 characters of a-z 0-9 -. Used in URLs and on disk. Status and logs " +
+			"track the systemd unit <name>.service by convention — name the workload after " +
+			"its main unit (e.g. \"jellyfin\") to get them.",
+		// Uncontained: it logs wherever its units log; there is no inner
+		// journal distinct from the host's.
+		SupportsInsideJournal: false,
+		// Convention: the workload's status/lifecycle track <name>.service.
+		// A workload whose module starts differently-named (or no) units
+		// degrades to the existing "status unavailable" path harmlessly.
+		UnitName: func(name string) string { return name + ".service" },
+		JournalArgs: func(name string, _ bool) []string {
+			return []string{"-u", name + ".service"}
+		},
+		// Uncontained workloads own no nixbox-managed data directory; state
+		// lives wherever the service puts it (its own StateDirectory etc.).
+		DataDir: func(string) string { return "" },
+		// No ShellArgs: "a shell inside the workload" is just the host shell,
+		// which is the terminal's separate host entry point.
 	})
 }

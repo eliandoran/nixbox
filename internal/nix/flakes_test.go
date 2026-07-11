@@ -18,7 +18,13 @@ func TestRenderFlakeNoInputs(t *testing.T) {
 
   outputs = { self, ... }@inputs: {
     nixosModules.default = { ... }: {
-      imports = [ ./modules/default.nix ];
+      imports = [ ./modules/default.nix ] ++ (map
+        (path:
+          let v = import path;
+          in if builtins.isFunction v && (builtins.functionArgs v) ? flakeInputs
+             then v { flakeInputs = inputs; }
+             else v)
+        (builtins.attrValues ((import ./index.nix).hostServices or { })));
       _module.args.flakeInputs = inputs;
     };
   };
@@ -48,7 +54,13 @@ func TestRenderFlakeInputs(t *testing.T) {
 
   outputs = { self, ... }@inputs: {
     nixosModules.default = { ... }: {
-      imports = [ ./modules/default.nix ];
+      imports = [ ./modules/default.nix ] ++ (map
+        (path:
+          let v = import path;
+          in if builtins.isFunction v && (builtins.functionArgs v) ? flakeInputs
+             then v { flakeInputs = inputs; }
+             else v)
+        (builtins.attrValues ((import ./index.nix).hostServices or { })));
       _module.args.flakeInputs = inputs;
     };
   };

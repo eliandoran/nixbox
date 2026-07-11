@@ -68,16 +68,33 @@ func renderFlake(inputs []FlakeInput) string {
 	b.WriteString("  };\n\n")
 
 	// Outputs expose the workload composition and thread the declared flake
-	// inputs down to every workload via the `flakeInputs` module arg, so a
-	// workload.nix can import a module from an input (e.g. a NixOS container
-	// that pulls in a flake declared in the Flakes tab). Inputs a workload
-	// doesn't reference are still just locked, never built.
-	b.WriteString("  outputs = { self, ... }@inputs: {\n")
-	b.WriteString("    nixosModules.default = { ... }: {\n")
-	b.WriteString("      imports = [ ./modules/default.nix ];\n")
-	b.WriteString("      _module.args.flakeInputs = inputs;\n")
-	b.WriteString("    };\n")
-	b.WriteString("  };\n}\n")
+	// inputs down to every workload, so a workload.nix can import a module
+	// from an input (e.g. a flake declared in the Flakes tab). Inputs a
+	// workload doesn't reference are still just locked, never built.
+	//
+	// Containers receive the inputs as the `flakeInputs` module arg (their
+	// type modules apply lib.toFunction; the arg only ever feeds *config*).
+	// Host services need more care: each one is a system-level module whose
+	// `imports` may reference an input, and NixOS forbids module args in
+	// imports (infinite recursion — imports resolve before the arg fixpoint).
+	// So their { flakeInputs }: wrapper is applied HERE, in outputs scope,
+	// where `inputs` is plain data. builtins.functionArgs disambiguates the
+	// wrapper from an ordinary module function ({ config, pkgs, ... }: …),
+	// which is passed to the module system untouched.
+	b.WriteString(`  outputs = { self, ... }@inputs: {
+    nixosModules.default = { ... }: {
+      imports = [ ./modules/default.nix ] ++ (map
+        (path:
+          let v = import path;
+          in if builtins.isFunction v && (builtins.functionArgs v) ? flakeInputs
+             then v { flakeInputs = inputs; }
+             else v)
+        (builtins.attrValues ((import ./index.nix).hostServices or { })));
+      _module.args.flakeInputs = inputs;
+    };
+  };
+}
+`)
 	return b.String()
 }
 

@@ -124,8 +124,17 @@ vanilla-JS EventSource for SSE (`web/static/app.js`); all assets embedded via
   owns its index section, static module, templates, name rule, and systemd
   unit/journal/data-dir funcs. Adding a kind (microvm, …) is one `Register`
   call plus its module string — no call site branches on the type string, and
-  no schema change (`workloads.type` is free-form TEXT). `nixos-container` and
-  `oci-container` (podman-backed) exist today.
+  no schema change (`workloads.type` is free-form TEXT). `nixos-container`,
+  `oci-container` (podman-backed), and `host-service` exist today.
+- `host-service` is the uncontained type: its workload.nix is a NixOS module
+  applied straight to the host. It has no static module (`ModuleFile: ""`) —
+  renderFlake splices `index.hostServices` into `nixosModules.default` in the
+  flake's *outputs* scope, because a workload's `imports` may reference
+  `flakeInputs` and NixOS forbids module args in `imports` (infinite
+  recursion). `builtins.functionArgs` distinguishes the `{ flakeInputs }:`
+  wrapper from an ordinary module function, which passes through untouched.
+  Status/lifecycle/journal follow the `<name>.service` convention — a workload
+  whose units are named differently degrades to "status unavailable".
 - Flake inputs (`internal/nix/flakes.go`, `internal/server/handlers_flake.go`,
   `flake_inputs` SQLite table, Flakes tab) are a pure dependency registry: name +
   flake ref + optional `follows` nixpkgs, nothing about where they're used.

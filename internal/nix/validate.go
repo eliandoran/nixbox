@@ -31,17 +31,23 @@ func CheckSyntax(ctx context.Context, path string) error {
 // attribute names, catching evaluation errors beyond syntax (missing
 // semicolons parse fine but undefined variables don't eval).
 //
-// It mirrors the composition's lib.toFunction: a workload written as
-// `{ flakeInputs }: { ... }` is applied to a stub before attrNames.
-// The stub is empty — attrNames only forces the top-level keys, so a
-// lazy reference like flakeInputs.<name> inside the config is never
-// evaluated here; resolving real inputs is the apply pipeline's job.
+// A function-form workload is applied to stub arguments synthesized from
+// its own pattern (builtins.functionArgs), which covers both shapes the
+// composition accepts: the { flakeInputs }: input-consuming wrapper and a
+// host-service written as an ordinary module function
+// ({ config, pkgs, ... }: …). The stubs are empty attrsets — attrNames
+// only forces the top-level keys, so references *through* a stub (e.g.
+// flakeInputs.<name>, pkgs.foo) stay lazy and unevaluated; resolving the
+// real values is the apply pipeline's job.
 func CheckEval(ctx context.Context, path string) error {
 	bin, err := exec.LookPath("nix")
 	if err != nil {
 		return nil
 	}
-	const apply = `v: builtins.attrNames (if builtins.isFunction v then v { flakeInputs = { }; } else v)`
+	const apply = `v: builtins.attrNames (
+	  if builtins.isFunction v
+	  then v (builtins.mapAttrs (_: _: { }) (builtins.functionArgs v))
+	  else v)`
 	out, err := exec.CommandContext(ctx, bin, "eval", "--json",
 		"--file", path, "--apply", apply).CombinedOutput()
 	if err != nil {

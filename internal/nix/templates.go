@@ -137,6 +137,61 @@ var ociTemplates = []Template{
 	},
 }
 
+// hostServiceTemplates are offered when creating a host-service; the
+// host-service WorkloadType references this slice. The content is a NixOS
+// module applied directly to the host system — uncontained by design, so
+// anything the module declares (users, units, mounts) lands on the host.
+var hostServiceTemplates = []Template{
+	{
+		ID:          "blank",
+		Name:        "Blank",
+		Description: "A NixOS module applied directly to the host — no container.",
+		Content: `{ config, pkgs, lib, ... }: {
+  # Anything a NixOS configuration can set, applied to the host system.
+  # e.g. services.<something>.enable = true;
+}
+`,
+	},
+	{
+		ID:          "nginx",
+		Name:        "Web server",
+		Description: "nginx on the host itself, serving :8080; nixbox opens the port on the host firewall.",
+		Content: `{ config, pkgs, lib, ... }: {
+  services.nginx = {
+    enable = true;
+    virtualHosts.localhost = {
+      listen = [ { addr = "0.0.0.0"; port = 8080; } ];
+      root = pkgs.writeTextDir "index.html" "<h1>Hello from a nixbox host service</h1>";
+    };
+  };
+}
+`,
+		// Served straight from the host's network stack; the port opens via
+		// the Host ports field, same as the container variant. Mutually
+		// exclusive with the nginx *container* template at runtime — both
+		// bind host :8080.
+		Ports: []HostPort{{Port: 8080, Proto: "tcp"}},
+	},
+	{
+		ID:   "flake-module",
+		Name: "Flake module",
+		Description: "Runs a module from a flake declared in the Flakes tab, " +
+			"directly on the host. Note the leading `{ flakeInputs }:`.",
+		// As with the container variant, the leading { flakeInputs } pattern
+		// opts into the declared flake inputs; it is applied by the generated
+		// flake output, so the returned module may use them in `imports`.
+		Content: `{ flakeInputs }: {
+  # Requires a flake input named "example" (Flakes tab). The module runs on
+  # the host itself; open the ports it serves in the Host ports field.
+  imports = [ flakeInputs.example.nixosModules.default ];
+
+  # Configure whatever the module provides, e.g.:
+  # services.example.enable = true;
+}
+`,
+	},
+}
+
 // TemplateByID resolves one of this type's templates by ID.
 func (wt WorkloadType) TemplateByID(id string) (Template, bool) {
 	for _, t := range wt.Templates {
