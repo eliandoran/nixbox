@@ -25,20 +25,15 @@ const (
 	WorkloadTypeOCI       = "oci-container"
 )
 
-// The flake output is fixed boilerplate; the actual module set lives in
-// the generated modules/default.nix, so adding a workload type never
-// rewrites the flake (and never re-locks it).
-const stateFlakeNix = `{
-  description = "nixbox-managed workloads (generated; do not edit by hand)";
-
-  outputs = { self }: {
-    nixosModules.default = import ./modules/default.nix;
-  };
-}
-`
+// flake.nix is generated from the declared flake inputs (see flakes.go).
+// With no inputs it is input-free — adding a workload *type* never touches
+// inputs, so the "no re-lock on type add" property holds; only declaring a
+// flake input (a new dependency) changes inputs and forces a re-lock, which
+// is expected.
 
 // A flake with no inputs still needs a lock file for path-input
-// consumers; this is exactly what `nix flake lock` produces.
+// consumers; this is exactly what `nix flake lock` produces. It seeds the
+// lock on first init; once inputs are declared the pipeline re-locks.
 const stateFlakeLock = `{
   "nodes": {
     "root": {}
@@ -82,9 +77,9 @@ func (f *StateFlake) Init() error {
 			return err
 		}
 	}
+	// The module files are regenerated on every Init so they always reflect
+	// the current registered type set.
 	static := map[string]string{
-		"flake.nix":             stateFlakeNix,
-		"flake.lock":            stateFlakeLock,
 		"modules/hostports.nix": hostPortsModule,
 		"modules/default.nix":   modulesDefault(),
 	}
@@ -97,9 +92,22 @@ func (f *StateFlake) Init() error {
 			return err
 		}
 	}
+	// flake.nix and flake.lock are generated from the enabled services and
+	// re-locked by the pipeline, so Init only seeds them when absent — it
+	// must never clobber a flake that already carries service inputs and a
+	// matching lock.
+	if _, err := os.Stat(filepath.Join(f.Dir, "flake.nix")); os.IsNotExist(err) {
+		if err := f.WriteFlake(nil); err != nil {
+			return err
+		}
+	}
+	if _, err := os.Stat(filepath.Join(f.Dir, "flake.lock")); os.IsNotExist(err) {
+		if err := writeFileAtomic(filepath.Join(f.Dir, "flake.lock"), []byte(stateFlakeLock)); err != nil {
+			return err
+		}
+	}
 	// An index must always exist for the flake to evaluate.
-	indexPath := filepath.Join(f.Dir, "index.nix")
-	if _, err := os.Stat(indexPath); os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(f.Dir, "index.nix")); os.IsNotExist(err) {
 		if err := f.WriteIndex(nil); err != nil {
 			return err
 		}

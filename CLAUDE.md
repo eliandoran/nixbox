@@ -118,6 +118,18 @@ vanilla-JS EventSource for SSE (`web/static/app.js`); all assets embedded via
   call plus its module string — no call site branches on the type string, and
   no schema change (`workloads.type` is free-form TEXT). `nixos-container` and
   `oci-container` (podman-backed) exist today.
+- Flake inputs (`internal/nix/flakes.go`, `internal/server/handlers_flake.go`,
+  `flake_inputs` SQLite table, Flakes tab) are a pure dependency registry: name +
+  flake ref + optional `follows` nixpkgs, nothing about where they're used.
+  `flake.nix` is generated from the declared inputs (`WriteFlake`, mirrors
+  `WriteIndex`) with *fixed* outputs (just the workload module set) — declared
+  inputs are intentionally unreferenced, so Nix locks them without changing
+  composition. The pipeline's `nix flake lock` step re-locks before the host
+  update: adding a workload *type* never re-locks, but declaring an input (a new
+  dependency) does. `Init` only seeds `flake.nix`/`flake.lock` when absent so it
+  never clobbers a locked, input-bearing flake. Wiring an input into a workload or
+  the host is intentionally a separate, not-yet-built concern. An input's
+  pending/locked badge is derived from timestamps (`applied_at` vs `updated_at`).
 - Containers without `privateNetwork` share the host's network namespace:
   their ports must be opened in the *host's* firewall (the dev VM opens 8080
   for the nginx template).

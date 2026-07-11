@@ -102,6 +102,9 @@ func (s *Server) startApply(workloadID *int64, mode nix.RebuildMode) (*store.Job
 	if err := s.regenerateIndex(); err != nil {
 		return nil, err
 	}
+	if err := s.regenerateFlake(); err != nil {
+		return nil, err
+	}
 
 	// Snapshot revisions now: edits made while the rebuild runs must
 	// not be marked as applied.
@@ -121,6 +124,17 @@ func (s *Server) startApply(workloadID *int64, mode nix.RebuildMode) (*store.Job
 		applied[wl.ID] = rev.ID
 	}
 
+	// Snapshot the declared flake inputs: this rebuild locks their current
+	// refs into the live system, so mark exactly these applied on success.
+	inputs, err := s.store.FlakeInputs()
+	if err != nil {
+		return nil, err
+	}
+	var appliedInputs []int64
+	for _, in := range inputs {
+		appliedInputs = append(appliedInputs, in.ID)
+	}
+
 	kind := store.JobApply
 	if mode == nix.ModeBuild {
 		kind = store.JobValidate
@@ -130,6 +144,11 @@ func (s *Server) startApply(workloadID *int64, mode nix.RebuildMode) (*store.Job
 		if err == nil && code == 0 && mode != nix.ModeBuild {
 			for wid, rid := range applied {
 				if err := s.store.MarkApplied(wid, rid); err != nil {
+					return jobs.Result{ExitCode: code, Generation: gen}, err
+				}
+			}
+			for _, id := range appliedInputs {
+				if err := s.store.MarkFlakeInputApplied(id); err != nil {
 					return jobs.Result{ExitCode: code, Generation: gen}, err
 				}
 			}

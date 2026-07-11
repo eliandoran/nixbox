@@ -26,18 +26,24 @@ const (
 
 // Pipeline executes the apply sequence:
 //
-//  1. refresh the nixbox-state path input's lock entry so the host
-//     flake sees the current state dir contents,
-//  2. nixos-rebuild against the host flake.
+//  1. lock the state flake itself, so any service inputs it now declares
+//     (nixflix, …) are resolved and pinned in state/flake.lock,
+//  2. refresh the nixbox-state path input's lock entry so the host
+//     flake sees the current state dir contents and its input closure,
+//  3. nixos-rebuild against the host flake.
 //
-// The caller is responsible for having written workload files and the
-// index beforehand. nixos-rebuild builds the full system before
-// activating anything, so a failure at any step leaves the running
-// system untouched.
+// The caller is responsible for having written workload files, the index,
+// and flake.nix beforehand. nixos-rebuild builds the full system before
+// activating anything, so a failure at any step leaves the running system
+// untouched.
 type Pipeline struct {
 	Runner    run.Runner
 	HostFlake string
 	HostAttr  string
+	// StateDir is the state flake root (<stateDir>/state); step 1 locks it
+	// so newly-added service inputs are fetched and pinned before the host
+	// flake pulls the state input's closure.
+	StateDir string
 	// StateInputName is the host flake's input name for the state
 	// flake ("nixbox-state" per the documented setup).
 	StateInputName string
@@ -50,8 +56,22 @@ type Pipeline struct {
 // It returns the command exit code and, on success, the current system
 // generation.
 func (p *Pipeline) Rebuild(ctx context.Context, log io.Writer, mode RebuildMode) (int, *int64, error) {
+	// Lock the state flake first so any service inputs it declares are
+	// resolved and pinned in state/flake.lock. With no service inputs this
+	// is an offline no-op; with them it is where the external flakes
+	// (nixflix, …) are actually fetched. A failure here (bad ref) stops the
+	// apply before nixos-rebuild, leaving the running system untouched.
+	fmt.Fprintf(log, "==> locking state flake\n")
+	code, err := p.Runner.Stream(ctx, log, "nix", "flake", "lock", p.StateDir)
+	if err != nil {
+		return -1, nil, fmt.Errorf("nix flake lock: %w", err)
+	}
+	if code != 0 {
+		return code, nil, nil
+	}
+
 	fmt.Fprintf(log, "==> refreshing %s input\n", p.StateInputName)
-	code, err := p.Runner.Stream(ctx, log, "nix", "flake", "update", p.StateInputName,
+	code, err = p.Runner.Stream(ctx, log, "nix", "flake", "update", p.StateInputName,
 		"--flake", p.HostFlake)
 	if err != nil {
 		return -1, nil, fmt.Errorf("nix flake update: %w", err)

@@ -73,6 +73,11 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.HandleFunc("POST /workloads/{name}/destroy", s.handleWorkloadDestroy)
 	s.mux.HandleFunc("POST /workloads/{name}/revisions/{id}/restore", s.handleWorkloadRestore)
 	s.mux.HandleFunc("POST /workloads/{name}/{verb}", s.handleWorkloadLifecycle)
+	s.mux.HandleFunc("GET /flakes", s.handleFlakeList)
+	s.mux.HandleFunc("POST /flakes", s.handleFlakeCreate)
+	s.mux.HandleFunc("POST /flakes/apply", s.handleFlakeApply)
+	s.mux.HandleFunc("POST /flakes/{name}/save", s.handleFlakeSave)
+	s.mux.HandleFunc("POST /flakes/{name}/delete", s.handleFlakeDelete)
 	s.mux.HandleFunc("GET /system", s.handleSystem)
 	s.mux.HandleFunc("POST /system/rebuild", s.handleRebuild)
 	s.mux.HandleFunc("POST /system/reboot", s.handleReboot)
@@ -146,7 +151,7 @@ func (s *Server) localizer(r *http.Request) *i18n.Localizer {
 // clones and rebinds them per request. In dev mode this is re-run on
 // every render so template edits show on a refresh.
 func (s *Server) parseTemplates() error {
-	pages := []string{"dashboard", "system", "workload", "workload_new"}
+	pages := []string{"dashboard", "system", "workload", "workload_new", "flakes"}
 	src := s.assetFS()
 	funcs := i18nFuncs(s.defaultLocalizer())
 	s.pages = make(map[string]*template.Template, len(pages))

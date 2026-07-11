@@ -98,6 +98,7 @@ func serve(cfg config.Config) error {
 		Runner:         runner,
 		HostFlake:      cfg.HostFlake,
 		HostAttr:       cfg.HostAttr,
+		StateDir:       cfg.StateFlakeDir(),
 		StateInputName: "nixbox-state",
 		DryRun:         cfg.DryRun,
 	}

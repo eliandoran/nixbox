@@ -1,0 +1,78 @@
+{{define "content"}}
+<section>
+  <div class="section-head">
+    <h2>Flake inputs</h2>
+    <div class="action-bar">
+      <form hx-post="/flakes/apply" hx-target="#job-panel" hx-swap="innerHTML">
+        <button class="primary" {{if .Busy}}disabled{{end}}>Apply</button>
+      </form>
+    </div>
+  </div>
+  <p class="hint">External flakes declared as inputs of the managed state flake.
+  Defining an input fetches and pins it into the lock on apply; wiring an input
+  into a workload or the host is handled separately.
+  {{if .DryRun}}<strong>Dry-run:</strong> apply builds but never activates.{{end}}</p>
+
+  {{if .Flash}}<div class="banner banner-ok">{{.Flash}}</div>{{end}}
+  {{if .Error}}<div class="banner banner-error">{{.Error}}</div>{{end}}
+
+  <form method="post" action="/flakes" class="card form">
+    <h3>Add input</h3>
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" required autocomplete="off"
+           pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" maxlength="63" placeholder="nixflix">
+    <p class="hint">1–63 characters of a-z 0-9 -. The flake input name, referenced
+    as <code>inputs.&lt;name&gt;</code>.</p>
+
+    <label for="url">Flake reference</label>
+    <input type="text" id="url" name="url" required autocomplete="off" placeholder="github:owner/repo">
+    <p class="hint">Any flake ref: <code>github:owner/repo</code>,
+    <code>github:owner/repo/ref</code>, <code>git+https://…</code>, <code>path:/…</code>.</p>
+
+    <label class="checkbox">
+      <input type="checkbox" name="follows_nixpkgs"> Follow a shared nixpkgs
+    </label>
+    <p class="hint">Pins this input's nixpkgs to the state flake's nixpkgs input,
+    avoiding a second copy in the closure. See the README on collapsing it onto
+    the host's nixpkgs.</p>
+
+    <div class="form-actions">
+      <button type="submit" class="primary">Add</button>
+    </div>
+  </form>
+
+  {{if .Inputs}}
+  <table class="jobs">
+    <thead><tr><th>Name</th><th>Flake reference</th><th>State</th><th></th></tr></thead>
+    <tbody>
+      {{range .Inputs}}
+      <tr>
+        <td><code>{{.Name}}</code></td>
+        <td>
+          <form method="post" action="/flakes/{{.Name}}/save" class="row-form">
+            <input type="text" name="url" value="{{.URL}}" required autocomplete="off">
+            <label class="checkbox hint">
+              <input type="checkbox" name="follows_nixpkgs" {{if .FollowsNixpkgs}}checked{{end}}> follows nixpkgs
+            </label>
+            <button>Save</button>
+          </form>
+        </td>
+        <td><span class="badge state-{{if eq .Status "locked"}}applied{{else}}pending{{end}}">{{.Status}}</span></td>
+        <td>
+          <form method="post" action="/flakes/{{.Name}}/delete"
+                onsubmit="return confirm('Remove input {{.Name}}?')">
+            <button class="danger">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p class="empty">No flake inputs yet. Add one above to pull an external flake
+  into the system flake.</p>
+  {{end}}
+
+  <div id="job-panel"></div>
+</section>
+{{end}}

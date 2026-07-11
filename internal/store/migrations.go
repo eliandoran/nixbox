@@ -51,6 +51,24 @@ var migrations = []string{
 	// `name` column remains the load-bearing ID (URL key, filesystem dir,
 	// systemd/NixOS container identity). Empty means "fall back to name".
 	`ALTER TABLE workloads ADD COLUMN display_name TEXT NOT NULL DEFAULT '';`,
+	// External flakes declared as inputs of the managed state flake, defined
+	// in the Flakes tab. A pure dependency registry: a name (the flake input
+	// name, so it obeys nix.ValidateName) and a flake ref, optionally
+	// following a shared nixpkgs. Where an input is *used* is a separate
+	// concern. There is no revision history; the pending/locked badge is
+	// derived from timestamps — applied_at NULL or older than updated_at
+	// means the input is not yet locked into the live system.
+	`
+	CREATE TABLE flake_inputs (
+		id              INTEGER PRIMARY KEY,
+		name            TEXT NOT NULL UNIQUE,
+		url             TEXT NOT NULL,
+		follows_nixpkgs INTEGER NOT NULL DEFAULT 0,
+		created_at      TIMESTAMP NOT NULL,
+		updated_at      TIMESTAMP NOT NULL,
+		applied_at      TIMESTAMP
+	);
+	`,
 }
 
 func (s *Store) migrate() error {

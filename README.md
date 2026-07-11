@@ -41,6 +41,28 @@ Before every rebuild, nixbox runs `nix flake update nixbox-state` so the
 lock always points at the current state. A manual `nixos-rebuild`
 without that update still works — it just uses the last-applied state.
 
+### Flake inputs
+
+The **Flakes** tab is a registry of external flakes declared as inputs of
+the managed state flake — a pure dependency list (name + flake ref). It is
+deliberately separate from where an input is *used*: defining an input
+makes it available and, on apply, fetched and pinned into `state/flake.lock`
+(the pipeline runs `nix flake lock` before the rebuild, so a bad ref fails
+the apply before `nixos-rebuild`, never touching the running system).
+Wiring an input into a workload or the host is a separate concern.
+
+If an input opts to *follow a shared nixpkgs*, the state flake declares its
+own `nixpkgs` input. To collapse that onto the host's nixpkgs (one copy in
+the closure, no version skew), point the state input's nixpkgs at yours in
+the host flake:
+
+```nix
+inputs.nixbox-state = {
+  url = "path:/var/lib/nixbox/state";
+  inputs.nixpkgs.follows = "nixpkgs";
+};
+```
+
 Setup is two steps because the `path:` input must exist first:
 
 1. Run `sudo nixbox init` (or enable only `services.nixbox` and rebuild
