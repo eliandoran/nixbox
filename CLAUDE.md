@@ -15,6 +15,7 @@ generations/rollback, flake input updates, export, then auth (see git log).
 
 ```bash
 go build ./... && go vet ./... && go test ./...   # standard check
+go test ./... -cover                              # per-package coverage (check after every change)
 go test ./internal/nix -run TestWriteIndex        # single test
 nix build .#nixbox                                # package (update vendorHash in nix/package.nix when go.mod changes)
 
@@ -44,6 +45,43 @@ neuter — so it stays behind its own opt-in and is off by default. Enabling it
 is equivalent to publishing a root console; only safe once auth (milestone 4)
 lands. The dev recipe turns it on because it is loopback-bound and runs as the
 dev user.
+
+## Testing & coverage (the bar is 100%)
+
+Every package is tested to 100% statement coverage where achievable, and no
+package sits below ~90% except `cmd/nixbox` (~80%, `os.Exit` legs). **After
+any change or new feature, run `go test ./... -cover` and restore the touched
+package's number before committing** — new code lands *with* its tests, not
+after. A drop is a review finding, not a style preference: the uncovered lines
+are exactly where the next regression hides.
+
+Reuse the established idioms instead of inventing new harnesses:
+
+- **HTTP handlers**: `newTestServer` + `post`/`get`/`wantRedirect` in
+  `internal/server/handlers_secrets_test.go`; fault the store with
+  `dropTable` (lookups 500) and `denyWrites` (RAISE triggers: reads work,
+  the mutation itself fails), via a second SQLite connection.
+- **External commands**: never run real mutating commands — substitute
+  `run.Runner` (scripted/recording/fail runners exist in
+  `internal/nix/rebuild_test.go`, `internal/machine/manager_test.go`,
+  `internal/server/handlers_test.go`).
+- **Store error paths**: closed-db sweeps, corrupt `not-a-time` timestamp
+  rows to fault scan loops, dropped tables for mid-transaction failures
+  (`internal/store/*_test.go`).
+- **Filesystem errors**: read-only dirs (chmod 0555 + cleanup), a file where
+  a dir should go, rename-over-directory.
+- **SSE/streaming loops**: a pre-canceled request context runs exactly one
+  iteration then exits (`sseGet` in `internal/server/handlers_test.go`).
+- **Async jobs**: poll the store row / `Busy()` with a deadline
+  (`waitDone`/`waitIdle`), never sleep-and-hope.
+
+Legitimate residual (don't build mock SQL drivers to paint it green):
+`os.Exit` legs, unfaultable defensive returns (`LastInsertId`, `sql.Open`,
+`Commit`), environment-dependent fallbacks (`os.Hostname`, `/etc/os-release`,
+missing nix toolchain), and live-integration paths (journalctl follow,
+WebSocket/PTY pump) — the latter belong to the verify skill, not unit tests.
+Read-only nix/sh commands (`nix-instantiate --parse`, `echo`) run for real in
+tests by design, mirroring dry-run's contract.
 
 For UI verification with a real browser (headless Chromium over CDP), follow
 `.claude/skills/verify/SKILL.md`.
