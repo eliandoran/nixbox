@@ -384,7 +384,6 @@ pre.log:empty::before {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
-  border-bottom: 1px solid var(--border);
 }
 .tab {
   background: transparent;
@@ -392,15 +391,18 @@ pre.log:empty::before {
   border-bottom: none;
   border-radius: 8px 8px 0 0;
   padding: 0.45rem 0.9rem;
-  margin-bottom: -1px;
   color: var(--muted);
 }
-.tab:hover { color: var(--text); border-color: transparent; }
+.tab:hover { color: var(--text); }
+/* The active tab shares the panel's surface and overlaps its top border by
+   1px (raised above it) so the two read as one connected card. */
 .tab[aria-selected="true"] {
   color: var(--text);
   background: var(--surface);
   border-color: var(--border);
-  border-bottom-color: var(--surface);
+  margin-bottom: -1px;
+  position: relative;
+  z-index: 1;
   font-weight: 600;
 }
 .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -409,7 +411,15 @@ pre.log:empty::before {
    everyday views; the destructive framing lives on the Destroy box inside. */
 .tab-end { margin-left: auto; }
 
-.tabpanel { margin-top: 1rem; }
+/* The panel body is a card like the ones on the dashboard: surface fill and
+   a border for contrast against the page, square top corners so it reads as
+   attached to the tab strip above it. */
+.tabpanel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0 0 10px 10px;
+  padding: 1rem;
+}
 .tabpanel[hidden] { display: none; }
 
 /* A panel's own controls (Logs' source toggle, Terminal's Open shell) sit in
