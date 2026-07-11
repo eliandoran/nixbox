@@ -376,6 +376,51 @@ pre.log:empty::before {
 .action-bar { display: flex; gap: 0.5rem; }
 .action-bar form { margin: 0; }
 
+/* Tabbed views on the workload page (Config / Logs / Terminal / Revisions).
+   The status header and action bar stay above the strip; only this region
+   swaps. Panels stay in the DOM (hidden) so their SSE/WS streams live on. */
+.tabs { margin-top: 1.5rem; }
+.tablist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 0.45rem 0.9rem;
+  margin-bottom: -1px;
+  color: var(--muted);
+}
+.tab:hover { color: var(--text); border-color: transparent; }
+.tab[aria-selected="true"] {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+  border-bottom-color: var(--surface);
+  font-weight: 600;
+}
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.tabpanel { margin-top: 1rem; }
+.tabpanel[hidden] { display: none; }
+/* The first heading inside a panel shouldn't push the panel down again —
+   the tab strip already provides the top separation. */
+.tabpanel > .section-head:first-child,
+.tabpanel > h2:first-child { margin-top: 0; }
+
+/* Destroy sits below the tabs; frame it so it reads as deliberate. */
+.danger-zone {
+  margin-top: 2rem;
+  border: 1px solid var(--bad);
+  border-radius: 10px;
+  padding: 1rem;
+}
+.danger-zone h2 { color: var(--bad); }
+
 .section-head h2 { display: flex; align-items: center; gap: 0.5rem; }
 
 /* Inline pencil next to the workload name; stays quiet until hovered. */

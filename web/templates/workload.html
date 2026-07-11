@@ -39,8 +39,24 @@
   </div>
 
   {{if .Flash}}<div class="banner banner-ok">{{.Flash}}</div>{{end}}
+</section>
 
-  <form hx-post="/workloads/{{.Workload.Name}}/save" hx-target="#save-result" hx-swap="innerHTML">
+<div class="tabs" id="workload-tabs">
+  <div class="tablist" role="tablist" aria-label="Workload views">
+    <button type="button" role="tab" class="tab" id="tab-config" data-tab="config"
+            aria-controls="panel-config" aria-selected="true">Config</button>
+    <button type="button" role="tab" class="tab" id="tab-logs" data-tab="logs"
+            aria-controls="panel-logs" aria-selected="false" tabindex="-1">Logs</button>
+    {{if and .TerminalEnabled .HasShell}}
+    <button type="button" role="tab" class="tab" id="tab-terminal" data-tab="terminal"
+            aria-controls="panel-terminal" aria-selected="false" tabindex="-1">Terminal</button>
+    {{end}}
+    <button type="button" role="tab" class="tab" id="tab-revisions" data-tab="revisions"
+            aria-controls="panel-revisions" aria-selected="false" tabindex="-1">Revisions</button>
+  </div>
+
+  <section class="tabpanel" id="panel-config" role="tabpanel" aria-labelledby="tab-config" tabindex="0">
+    <form hx-post="/workloads/{{.Workload.Name}}/save" hx-target="#save-result" hx-swap="innerHTML">
     <textarea name="content" class="editor" spellcheck="false" rows="18">{{.Content}}</textarea>
 
     <div class="field">
@@ -85,9 +101,9 @@
   </form>
   <div id="save-result"></div>
   <div id="job-panel"></div>
-</section>
+  </section>
 
-<section>
+  <section class="tabpanel" id="panel-logs" role="tabpanel" aria-labelledby="tab-logs" tabindex="0" hidden>
   <div class="section-head">
     <h2>Logs</h2>
     {{if .SupportsInsideJournal}}
@@ -100,13 +116,14 @@
   <div class="card log-card">
     <pre class="log" id="container-log" data-name="{{.Workload.Name}}"></pre>
   </div>
-</section>
+  </section>
 
-{{if and .TerminalEnabled .HasShell}}
-<section>
+  {{if and .TerminalEnabled .HasShell}}
+  <section class="tabpanel" id="panel-terminal" role="tabpanel" aria-labelledby="tab-terminal" tabindex="0" hidden>
   <div class="section-head">
     <h2>Terminal</h2>
-    <button type="button" class="primary" id="wl-terminal-btn" data-terminal-open="wl-terminal">Open shell</button>
+    <button type="button" class="primary" id="wl-terminal-btn" data-terminal-open="wl-terminal"
+            {{if not .Running}}disabled title="The container must be running first."{{end}}>Open shell</button>
   </div>
   <p class="hint">Opens an interactive shell inside <code>{{.Workload.Name}}</code>.
   {{if not .Running}}The container must be running first.{{end}}</p>
@@ -114,10 +131,10 @@
   <div id="wl-terminal" class="terminal terminal-inline"
        data-terminal-ws="/events/workloads/{{.Workload.Name}}/terminal" hidden></div>
   <script src="/static/xterm.js" defer></script>
-</section>
-{{end}}
+  </section>
+  {{end}}
 
-<section>
+  <section class="tabpanel" id="panel-revisions" role="tabpanel" aria-labelledby="tab-revisions" tabindex="0" hidden>
   <h2>Revisions</h2>
   {{if .Revisions}}
   <table class="jobs">
@@ -143,9 +160,13 @@
     </tbody>
   </table>
   {{end}}
-</section>
+  </section>
+</div>
 
-<section>
+<section class="danger-zone">
+  <h2>Danger zone</h2>
+  <p class="hint">Removing this workload disables it, rebuilds the system without it, then
+  deletes it and its history. This cannot be undone.</p>
   <button type="button" class="danger" data-open-dialog="destroy-dialog" {{if .Busy}}disabled{{end}}>Destroy container</button>
 </section>
 
