@@ -331,6 +331,71 @@ document.addEventListener("htmx:afterRequest", (ev) => {
   if (ev.detail.successful) form.closest("dialog")?.close();
 });
 
+// Secrets: one dialog serves both Add and Edit. The Add button opens it
+// empty; each row's Edit button carries the secret's identity + mounts in
+// data-* attributes, and clicking it fills the form and re-points it at the
+// per-secret save endpoint. Both roles submit as a normal form (server
+// redirects back), so nothing here handles the response.
+function initSecretDialog() {
+  const dlg = document.getElementById("secret-dialog");
+  if (!dlg) return;
+  const form = document.getElementById("secret-form");
+  const title = document.getElementById("secret-dialog-title");
+  const submit = document.getElementById("secret-submit");
+  const nameInput = form.elements.name;
+  const value = form.elements.value;
+  const mounts = form.querySelectorAll('input[name="mount"]');
+
+  const setMounts = (ids) => {
+    const set = new Set(ids);
+    mounts.forEach((cb) => { cb.checked = set.has(cb.value); });
+  };
+
+  document.addEventListener("click", (ev) => {
+    if (!(ev.target instanceof Element)) return;
+
+    if (ev.target.closest("[data-add-secret]")) {
+      form.reset();
+      form.action = "/secrets";
+      title.textContent = dlg.dataset.titleAdd;
+      submit.textContent = dlg.dataset.submitAdd;
+      nameInput.disabled = false;
+      nameInput.required = true;
+      value.required = true;
+      value.placeholder = "";
+      setMounts([]);
+      dlg.showModal();
+      nameInput.focus();
+      return;
+    }
+
+    const edit = ev.target.closest("[data-edit-secret]");
+    if (edit) {
+      const d = edit.dataset;
+      form.reset();
+      form.action = "/secrets/" + encodeURIComponent(d.editSecret) + "/save";
+      title.textContent = dlg.dataset.titleEdit;
+      submit.textContent = dlg.dataset.submitEdit;
+      // Name is the immutable key; show it read-only. A disabled field is
+      // not submitted, which is what the save endpoint wants (it reads the
+      // name from the URL).
+      nameInput.value = d.editSecret;
+      nameInput.disabled = true;
+      nameInput.required = false;
+      // Blank keeps the current ciphertext; the plaintext is never shown back.
+      value.required = false;
+      value.placeholder = dlg.dataset.valueKeep;
+      form.elements.owner.value = d.owner;
+      form.elements.group.value = d.group;
+      form.elements.mode.value = d.mode;
+      setMounts(d.mounts ? d.mounts.split(",") : []);
+      dlg.showModal();
+      value.focus();
+    }
+  });
+}
+document.addEventListener("DOMContentLoaded", initSecretDialog);
+
 // Language picker: picking a locale submits the topbar form, which sets
 // the nixbox-lang cookie and redirects back (a full reload re-renders
 // everything in the new language). Works without JS via Enter-to-submit.
