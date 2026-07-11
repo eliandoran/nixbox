@@ -371,6 +371,10 @@ pre.log:empty::before {
 
 .hint { color: var(--muted); font-size: 0.85rem; }
 
+/* Side-by-side field pair (display name + ID on the create form). */
+.form-row { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1rem; align-items: start; }
+@media (max-width: 480px) { .form-row { grid-template-columns: 1fr; } }
+
 .template-picker { display: grid; gap: 0.5rem; }
 .template-option {
   display: flex;

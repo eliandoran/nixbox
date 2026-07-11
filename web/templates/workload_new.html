@@ -21,16 +21,33 @@
 {{define "new-workload-body"}}
   <form method="post" action="/workloads" class="form"
         {{if .Modal}}hx-post="/workloads" hx-target="#new-workload-slot" hx-swap="innerHTML"{{end}}>
-    <label for="nw-display_name">{{T "wl.display-name"}} <span class="hint">{{T "new.optional"}}</span></label>
-    <input type="text" id="nw-display_name" name="display_name" value="{{.DisplayName}}"
-           maxlength="60" autocomplete="off" autofocus>
-    <p class="hint">{{T "new.display-hint"}}</p>
+    {{/* The ID input sits outside the HTMX-swapped type fields so a type
+         switch keeps its value; app.js derives it from the display name
+         until edited by hand, and retargets its constraints + hint from
+         the type radios' data attributes. */}}
+    <div class="form-row">
+      <div>
+        <label for="nw-display_name">{{T "wl.display-name"}} <span class="hint">{{T "new.optional"}}</span></label>
+        <input type="text" id="nw-display_name" name="display_name" value="{{.DisplayName}}"
+               maxlength="60" autocomplete="off" autofocus>
+        <p class="hint">{{T "new.display-hint"}}</p>
+      </div>
+      <div>
+        <label for="nw-name">{{T "wl.id"}}</label>
+        <input type="text" id="nw-name" name="name" value="{{.Name}}" required
+               pattern="{{.Selected.NamePattern}}" maxlength="{{.Selected.NameMaxLen}}"
+               autocomplete="off">
+        <p class="hint" id="nw-name-hint">{{TDef (printf "type.%s.name-hint" .Selected.ID) .Selected.NameHint}}</p>
+      </div>
+    </div>
 
     <label>{{T "wl.type"}}</label>
     <div class="template-picker">
       {{range .Types}}
       <label class="template-option">
         <input type="radio" name="type" value="{{.ID}}" {{if eq .ID $.Selected.ID}}checked{{end}}
+               data-name-pattern="{{.NamePattern}}" data-name-maxlen="{{.NameMaxLen}}"
+               data-name-hint="{{TDef (printf "type.%s.name-hint" .ID) .NameHint}}"
                hx-get="/partials/workload-fields?type={{.ID}}" hx-target="#nw-type-fields" hx-swap="innerHTML">
         <div>
           <strong>{{TDef (printf "type.%s.label" .ID) .Label}}</strong>
@@ -54,12 +71,6 @@
 {{end}}
 
 {{define "workload-type-fields"}}
-    <label for="nw-name">{{T "wl.id"}}</label>
-    <input type="text" id="nw-name" name="name" value="{{.Name}}" required
-           pattern="{{.Selected.NamePattern}}" maxlength="{{.Selected.NameMaxLen}}"
-           autocomplete="off">
-    <p class="hint">{{TDef (printf "type.%s.name-hint" .Selected.ID) .Selected.NameHint}}</p>
-
     <label>{{T "new.template"}}</label>
     <div class="template-picker">
       {{range $i, $t := .Templates}}

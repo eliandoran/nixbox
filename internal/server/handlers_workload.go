@@ -80,8 +80,9 @@ func (s *Server) handleWorkloadNew(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleWorkloadFields renders the per-type portion of the create form
-// (ID constraints + template picker) for the selected type. The type
-// radios swap it in via HTMX so the fields track the chosen type.
+// (the template picker) for the selected type. The type radios swap it in
+// via HTMX; the ID input stays outside the swap (its constraints follow
+// the radios' data attributes in app.js) so a type switch keeps the value.
 func (s *Server) handleWorkloadFields(w http.ResponseWriter, r *http.Request) {
 	sel := workloadType(r.URL.Query().Get("type"))
 	s.render(w, r, "workload_new", "workload-type-fields", newWorkloadData{

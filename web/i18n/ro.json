@@ -86,7 +86,7 @@
   "nav.system": "Sistem",
   "nav.terminal": "Terminal",
   "new.create": "Creează",
-  "new.display-hint": "O etichetă prietenoasă pentru interfață. Text liber; lăsați gol pentru a folosi doar ID-ul de mai jos.",
+  "new.display-hint": "O etichetă prietenoasă pentru interfață. Text liber; ID-ul se precompletează din ea până când este modificat manual.",
   "new.draft-hint": "Workload-ul este creat ca schiță: devine parte din sistem doar după ce îl activați și aplicați.",
   "new.optional": "(opțional)",
   "new.template": "Șablon",
