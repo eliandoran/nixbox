@@ -38,14 +38,51 @@ func TestParseCPUStat(t *testing.T) {
 
 func TestFormatBytes(t *testing.T) {
 	cases := map[uint64]string{
-		0:              "0 B",
-		512:            "512 B",
-		1536:           "1.5 KiB",
+		0:               "0 B",
+		512:             "512 B",
+		1536:            "1.5 KiB",
 		2 * 1024 * 1024: "2.0 MiB",
 	}
 	for in, want := range cases {
 		if got := FormatBytes(in); got != want {
 			t.Errorf("FormatBytes(%d) = %q, want %q", in, got, want)
 		}
+	}
+}
+
+func TestParseCPUStatEdgeCases(t *testing.T) {
+	// No aggregate "cpu " line (e.g. truncated read) yields zeros.
+	if total, busy := parseCPUStat("cpu0 1 2 3\n"); total != 0 || busy != 0 {
+		t.Errorf("no cpu line: %d %d", total, busy)
+	}
+	// Unparseable fields are skipped, the rest still count.
+	total, busy := parseCPUStat("cpu  100 junk 30 800 40\n")
+	if total != 970 || busy != 130 {
+		t.Errorf("junk field: total=%d busy=%d", total, busy)
+	}
+}
+
+// TestSample reads the real /proc and statfs — side-effect free by design
+// (the package's documented contract), and always present on Linux.
+func TestSample(t *testing.T) {
+	s := Sample("/")
+	if s.MemTotal == 0 || s.MemUsed == 0 {
+		t.Errorf("memory not sampled: %+v", s)
+	}
+	if s.CPUTotal == 0 {
+		t.Errorf("cpu not sampled: %+v", s)
+	}
+	if s.DiskTotal == 0 || s.DiskUsed == 0 || s.DiskUsed > s.DiskTotal {
+		t.Errorf("disk not sampled: %+v", s)
+	}
+
+	// A missing disk path leaves the disk fields zero instead of failing
+	// the sample.
+	s = Sample("/no/such/path")
+	if s.DiskTotal != 0 || s.DiskUsed != 0 {
+		t.Errorf("missing path disk fields: %+v", s)
+	}
+	if s.MemTotal == 0 {
+		t.Error("memory sampling must survive a bad disk path")
 	}
 }
