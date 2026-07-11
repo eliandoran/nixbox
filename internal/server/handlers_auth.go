@@ -260,18 +260,26 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 
-// safeNext keeps post-login redirects on this site: an absolute-path
-// target is honored, anything else (external URLs, scheme-relative
-// //host tricks, garbage) falls back to the dashboard. A leading "/"
-// alone is not enough: browsers parse "\" as "/" (so "/\host" is
-// scheme-relative //host) and strip tabs and newlines before parsing
-// (so "/\t/host" collapses to //host too), hence the second-character
-// and control-character checks.
-func safeNext(next string) string {
+// isLocalURL reports whether next stays on this site: an absolute path
+// with no way of escaping the origin. A leading "/" alone is not
+// enough: browsers parse "\" as "/" (so "/\host" is scheme-relative
+// //host) and strip tabs and newlines before parsing (so "/\t/host"
+// collapses to //host too), hence the second-character and
+// control-character checks. The name matters beyond taste: CodeQL's
+// url-redirection query recognizes is-local-url guards by name, while
+// the same checks inlined at the call site read as unvalidated flow.
+func isLocalURL(next string) bool {
 	if strings.ContainsFunc(next, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
-		return "/"
+		return false
 	}
-	if strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\") {
+	return strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\")
+}
+
+// safeNext keeps post-login redirects on this site: a local target is
+// honored, anything else (external URLs, scheme-relative //host tricks,
+// garbage) falls back to the dashboard.
+func safeNext(next string) string {
+	if isLocalURL(next) {
 		return next
 	}
 	return "/"
