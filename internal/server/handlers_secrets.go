@@ -128,7 +128,7 @@ func (s *Server) parseSecretForm(r *http.Request) (secretForm, string) {
 // host's SSH host key) and writes the ciphertext into the state flake.
 // The plaintext is never persisted anywhere.
 func (s *Server) encryptSecret(name, plaintext string) error {
-	rec, err := secret.LoadRecipient(s.cfg.AgeRecipient)
+	rec, err := s.loadRecipient(s.cfg.AgeRecipient)
 	if err != nil {
 		return err
 	}

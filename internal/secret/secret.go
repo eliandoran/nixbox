@@ -44,17 +44,23 @@ func LoadRecipient(path string) (age.Recipient, error) {
 // agenix expects in its .file (a .age file in the state flake).
 func Encrypt(rec age.Recipient, plaintext []byte) ([]byte, error) {
 	var buf bytes.Buffer
-	w, err := age.Encrypt(&buf, rec)
-	if err != nil {
-		return nil, err
-	}
-	if _, err := w.Write(plaintext); err != nil {
-		return nil, err
-	}
-	if err := w.Close(); err != nil {
+	if err := encryptTo(&buf, rec, plaintext); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// encryptTo is Encrypt against a caller-supplied writer, split out so
+// the write-path errors are testable (a bytes.Buffer never fails).
+func encryptTo(dst io.Writer, rec age.Recipient, plaintext []byte) error {
+	w, err := age.Encrypt(dst, rec)
+	if err != nil {
+		return err
+	}
+	if _, err := w.Write(plaintext); err != nil {
+		return err
+	}
+	return w.Close()
 }
 
 // Decrypt opens ciphertext with an identity. nixbox itself only needs

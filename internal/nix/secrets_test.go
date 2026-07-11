@@ -133,6 +133,103 @@ func TestSecretFileRoundTrip(t *testing.T) {
 	}
 }
 
+// TestSecretFileErrors covers the failure paths of the ciphertext
+// writes: a blocked secrets/ path and removal of a non-file.
+func TestSecretFileErrors(t *testing.T) {
+	dir := t.TempDir()
+	f := &StateFlake{Dir: dir}
+	// secrets is a FILE: MkdirAll (write) and ReadDir (prune) both fail.
+	if err := os.WriteFile(filepath.Join(dir, "secrets"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.WriteSecret("a", []byte("ct")); err == nil {
+		t.Error("expected mkdir error when secrets is a file")
+	}
+	if err := f.PruneSecrets(nil); err == nil {
+		t.Error("expected readdir error when secrets is a file")
+	}
+	if err := os.Remove(filepath.Join(dir, "secrets")); err != nil {
+		t.Fatal(err)
+	}
+
+	// A directory named <name>.age: os.Remove fails with a real error
+	// (not IsNotExist), for both RemoveSecret and the prune sweep.
+	if err := os.MkdirAll(filepath.Join(dir, "secrets", "a.age"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "secrets", "a.age", "f"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.RemoveSecret("a"); err == nil {
+		t.Error("expected remove error for non-empty directory")
+	}
+	if err := f.RemoveSecret("../evil"); err == nil {
+		t.Error("expected invalid name to be rejected")
+	}
+
+	// Unwritable secrets dir: the atomic write cannot create its temp file.
+	if err := os.Chmod(filepath.Join(dir, "secrets"), 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(filepath.Join(dir, "secrets"), 0o755) })
+	if err := f.WriteSecret("b", []byte("ct")); err == nil {
+		t.Error("expected write error in read-only dir")
+	}
+}
+
+func TestPruneSecrets(t *testing.T) {
+	dir := t.TempDir()
+	f := &StateFlake{Dir: dir}
+
+	// Pruning a flake that never had a secrets dir is a no-op.
+	if err := f.PruneSecrets(nil); err != nil {
+		t.Fatalf("prune without dir: %v", err)
+	}
+
+	if err := f.Init(); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"keep", "orphan"} {
+		if err := f.WriteSecret(n, []byte("ct")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Non-.age entries are never touched: a stray file and a directory.
+	if err := os.WriteFile(filepath.Join(dir, "secrets", "README"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "secrets", "sub.age"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := f.PruneSecrets([]string{"keep"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "secrets", "keep.age")); err != nil {
+		t.Errorf("kept secret pruned: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "secrets", "orphan.age")); !os.IsNotExist(err) {
+		t.Errorf("orphan survived prune: %v", err)
+	}
+	for _, n := range []string{"README", "sub.age"} {
+		if _, err := os.Stat(filepath.Join(dir, "secrets", n)); err != nil {
+			t.Errorf("non-secret entry %s touched: %v", n, err)
+		}
+	}
+
+	// An orphan in a read-only dir makes the sweep's os.Remove fail.
+	if err := f.WriteSecret("orphan2", []byte("ct")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Join(dir, "secrets"), 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(filepath.Join(dir, "secrets"), 0o755) })
+	if err := f.PruneSecrets([]string{"keep"}); err == nil {
+		t.Error("expected prune error on undeletable orphan")
+	}
+}
+
 // TestModulesDefaultConditionalSecrets: modules/default.nix imports
 // secrets.nix behind the index-derived condition, so a secretless system
 // never evaluates the age options.

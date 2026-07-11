@@ -11,11 +11,14 @@ import (
 	"os"
 	"slices"
 
+	"filippo.io/age"
+
 	"github.com/elian/nixbox/internal/config"
 	"github.com/elian/nixbox/internal/i18n"
 	"github.com/elian/nixbox/internal/jobs"
 	"github.com/elian/nixbox/internal/machine"
 	"github.com/elian/nixbox/internal/nix"
+	"github.com/elian/nixbox/internal/secret"
 	"github.com/elian/nixbox/internal/store"
 	"github.com/elian/nixbox/web"
 )
@@ -30,19 +33,23 @@ type Server struct {
 	mux      *http.ServeMux
 	pages    map[string]*template.Template
 	i18n     *i18n.Bundle
+	// loadRecipient resolves the age recipient secrets are encrypted to;
+	// secret.LoadRecipient in production, swappable in tests.
+	loadRecipient func(path string) (age.Recipient, error)
 }
 
 func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Manager,
 	pl *nix.Pipeline, mm *machine.Manager) (*Server, error) {
 
 	s := &Server{
-		cfg:      cfg,
-		store:    st,
-		flake:    flake,
-		jobs:     jm,
-		pipeline: pl,
-		machines: mm,
-		mux:      http.NewServeMux(),
+		cfg:           cfg,
+		store:         st,
+		flake:         flake,
+		jobs:          jm,
+		pipeline:      pl,
+		machines:      mm,
+		mux:           http.NewServeMux(),
+		loadRecipient: secret.LoadRecipient,
 	}
 
 	if err := s.loadCatalogs(); err != nil {
