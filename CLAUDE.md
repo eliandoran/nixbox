@@ -124,9 +124,11 @@ binds at parse time, so `render` clones the page template per request to
 rebind T to the request's locale (resolved `?lang=` → `nixbox-lang` cookie,
 set by the topbar picker via `POST /lang` → `Accept-Language` → `NIXBOX_LANG`).
 The two JS-rendered strings travel as translated `<body data-msg-*>`
-attributes. Adding a locale = drop in `<code>.json` with a `locale.name`
-entry; `TestCatalogCoverage` (internal/server) fails on missing, dead, or
-typoed keys in any catalog. Job logs, systemd states, and nix errors stay
+attributes. When adding or changing a UI string, update `ro.json` alongside
+`en.json` — the fallback chain means a stale ro silently shows English, which
+no test catches (`TestCatalogCoverage` fails on missing, dead, or typoed keys,
+but absent translations are legal). Adding a locale = drop in `<code>.json`
+with a `locale.name` entry. Job logs, systemd states, and nix errors stay
 untranslated by design.
 
 ## Domain constraints
