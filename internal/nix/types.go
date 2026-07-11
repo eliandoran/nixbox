@@ -54,6 +54,13 @@ type WorkloadType struct {
 	// inside" toggle on the detail page.
 	SupportsInsideJournal bool
 
+	// SupportsSecretMounts reports whether the type's module delivers
+	// mounted secrets into its workloads at /run/agenix/<secret> (reading
+	// index.secrets.<name>.mounts.<IndexKey>). Drives which workloads the
+	// Secrets tab offers as mount targets; a host-service needs no mount —
+	// it reads the host path directly.
+	SupportsSecretMounts bool
+
 	// UnitName maps a workload name to the systemd unit that backs it.
 	UnitName func(name string) string
 	// JournalArgs returns the journalctl selector for this workload.
@@ -115,15 +122,37 @@ func RegisteredTypes() []WorkloadType {
 // import a module from one inside its container config
 // (imports = [ flakeInputs.<name>.nixosModules.default ]). flakeInputs is
 // supplied by the flake output via _module.args (see flakes.go).
-const nixosContainerModule = `{ lib, flakeInputs, ... }:
+const nixosContainerModule = `{ config, lib, flakeInputs, ... }:
 
 let
   index = import ../index.nix;
+  # Secrets asked to be delivered into a given container, by workload
+  # name. The or-guards keep this evaluating against an index generated
+  # before secrets existed.
+  secretsFor = name: lib.filterAttrs
+    (_: s: lib.elem name (s.mounts.containers or [ ]))
+    (index.secrets or { });
 in
 {
-  containers = lib.mapAttrs
-    (name: path: lib.toFunction (import path) { inherit flakeInputs; })
-    (index.containers or { });
+  containers = lib.mkMerge [
+    (lib.mapAttrs
+      (name: path: lib.toFunction (import path) { inherit flakeInputs; })
+      (index.containers or { }))
+    # Deliver each mounted secret at the fixed /run/agenix/<secret> path
+    # inside the container by binding the decrypted host file (whose
+    # location agenix owns) read-only. config is the HOST config; it is
+    # only forced for containers that actually mount a secret.
+    (lib.mapAttrs
+      (name: _: {
+        bindMounts = lib.mapAttrs'
+          (sname: _: lib.nameValuePair "/run/agenix/${sname}" {
+            hostPath = config.age.secrets.${sname}.path;
+            isReadOnly = true;
+          })
+          (secretsFor name);
+      })
+      (index.containers or { }))
+  ];
 }
 `
 
@@ -135,15 +164,33 @@ in
 // contributes nothing when containers is empty, so podman is only pulled
 // in once an OCI workload exists. `or { }` keeps it evaluating against an
 // index generated before this type existed.
-const ociContainerModule = `{ lib, flakeInputs, ... }:
+const ociContainerModule = `{ config, lib, flakeInputs, ... }:
 
 let
   index = import ../index.nix;
+  # Secrets asked to be delivered into a given container, by workload
+  # name. The or-guards keep this evaluating against an index generated
+  # before secrets existed.
+  secretsFor = name: lib.filterAttrs
+    (_: s: lib.elem name (s.mounts.ociContainers or [ ]))
+    (index.secrets or { });
 in
 {
   virtualisation.oci-containers.backend = lib.mkDefault "podman";
-  virtualisation.oci-containers.containers =
-    lib.mapAttrs (name: path: lib.toFunction (import path) { inherit flakeInputs; }) (index.ociContainers or { });
+  virtualisation.oci-containers.containers = lib.mkMerge [
+    (lib.mapAttrs (name: path: lib.toFunction (import path) { inherit flakeInputs; }) (index.ociContainers or { }))
+    # Deliver each mounted secret at the fixed /run/agenix/<secret> path
+    # inside the container as a read-only podman volume of the decrypted
+    # host file. config is the HOST config; it is only forced for
+    # containers that actually mount a secret.
+    (lib.mapAttrs
+      (name: _: {
+        volumes = lib.mapAttrsToList
+          (sname: _: "${config.age.secrets.${sname}.path}:/run/agenix/${sname}:ro")
+          (secretsFor name);
+      })
+      (index.ociContainers or { }))
+  ];
 }
 `
 
@@ -174,6 +221,7 @@ func init() {
 		NameMaxLen:            11,
 		NameHint:              "1–11 characters of a-z 0-9 - (systemd-nspawn network interface limit). Used in URLs, on disk, and as the container's systemd identity — can't be changed later.",
 		SupportsInsideJournal: true,
+		SupportsSecretMounts:  true,
 		UnitName:              func(name string) string { return "container@" + name + ".service" },
 		JournalArgs: func(name string, inside bool) []string {
 			if inside {
@@ -203,6 +251,7 @@ func init() {
 		// An OCI container runs one process and logs to its host unit; it
 		// has no in-container journald to read.
 		SupportsInsideJournal: false,
+		SupportsSecretMounts:  true,
 		UnitName:              func(name string) string { return "podman-" + name + ".service" },
 		JournalArgs: func(name string, _ bool) []string {
 			return []string{"-u", "podman-" + name + ".service"}

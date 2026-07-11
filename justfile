@@ -15,10 +15,16 @@ dev:
     cleanup() { [ -n "$pid" ] && { kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; }; rm -rf "$tmp"; }
     trap cleanup EXIT
     trap 'exit 0' INT
+    # Dev age recipient: secrets are encrypted to an SSH pubkey, normally
+    # the machine's host key — a desktop may not run sshd, and dry-run
+    # never decrypts anyway, so give the dev server its own throwaway key.
+    mkdir -p dev-state
+    [ -f dev-state/age-recipient.pub ] || ssh-keygen -q -t ed25519 -N "" -C nixbox-dev -f dev-state/age-recipient
     while true; do
         echo "▶ building…"
         if go build -o "$tmp/nixbox" ./cmd/nixbox; then
-            NIXBOX_DRY_RUN=1 NIXBOX_DEV=1 NIXBOX_TERMINAL=1 NIXBOX_STATE_DIR=./dev-state "$tmp/nixbox" serve &
+            NIXBOX_DRY_RUN=1 NIXBOX_DEV=1 NIXBOX_TERMINAL=1 NIXBOX_STATE_DIR=./dev-state \
+                NIXBOX_AGE_RECIPIENT=./dev-state/age-recipient.pub "$tmp/nixbox" serve &
             pid=$!
             echo "  http://127.0.0.1:8368 (pid $pid) — Enter to rebuild & restart, Ctrl-C to quit."
             read -r || break

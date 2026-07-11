@@ -69,6 +69,34 @@ var migrations = []string{
 		applied_at      TIMESTAMP
 	);
 	`,
+	// agenix-managed secrets (Secrets tab). Metadata only: the value lives
+	// exclusively as age ciphertext on disk (state/secrets/<name>.age, the
+	// file Nix reads), never in the database. name doubles as the agenix
+	// secret name and the /run/agenix/<name> path, so it obeys
+	// nix.ValidateName. owner/group/mode are the decrypted file's identity
+	// on the host (group_name because "group" is an SQL keyword). The
+	// pending/applied badge derives from applied_at vs updated_at, exactly
+	// like flake_inputs. secret_mounts records which workloads the secret
+	// is delivered into (bind mount / podman volume, per the workload's
+	// type); host-service workloads read the host path directly and need
+	// no row here.
+	`
+	CREATE TABLE secrets (
+		id         INTEGER PRIMARY KEY,
+		name       TEXT NOT NULL UNIQUE,
+		owner      TEXT NOT NULL DEFAULT 'root',
+		group_name TEXT NOT NULL DEFAULT 'root',
+		mode       TEXT NOT NULL DEFAULT '0400',
+		created_at TIMESTAMP NOT NULL,
+		updated_at TIMESTAMP NOT NULL,
+		applied_at TIMESTAMP
+	);
+	CREATE TABLE secret_mounts (
+		secret_id   INTEGER NOT NULL REFERENCES secrets(id) ON DELETE CASCADE,
+		workload_id INTEGER NOT NULL REFERENCES workloads(id) ON DELETE CASCADE,
+		PRIMARY KEY (secret_id, workload_id)
+	);
+	`,
 }
 
 func (s *Store) migrate() error {

@@ -17,6 +17,12 @@ type Config struct {
 	HostFlake string
 	// HostAttr is the nixosConfigurations attribute to rebuild.
 	HostAttr string
+	// AgeRecipient is the SSH public key file secrets are encrypted to.
+	// The default is the host's ed25519 host key — the identity agenix
+	// decrypts with by default at activation — so on a normal NixOS host
+	// running sshd nothing needs configuring. Overridable for dev setups
+	// without a host key.
+	AgeRecipient string
 	// DryRun makes command runners log instead of execute, and
 	// downgrades `nixos-rebuild switch` to `build`.
 	DryRun bool
@@ -44,6 +50,7 @@ func FromEnv() Config {
 		StateDir:       envOr("NIXBOX_STATE_DIR", "./dev-state"),
 		HostFlake:      envOr("NIXBOX_HOST_FLAKE", "/etc/nixos"),
 		HostAttr:       envOr("NIXBOX_HOST_ATTR", hostname()),
+		AgeRecipient:   envOr("NIXBOX_AGE_RECIPIENT", "/etc/ssh/ssh_host_ed25519_key.pub"),
 		DryRun:         os.Getenv("NIXBOX_DRY_RUN") != "",
 		EnableTerminal: os.Getenv("NIXBOX_TERMINAL") != "",
 		Dev:            os.Getenv("NIXBOX_DEV") != "",

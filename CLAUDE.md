@@ -179,6 +179,19 @@ untranslated by design.
   buttons are client-side disabled while the editor has unsaved changes
   (`data-requires-saved` + guard in app.js) because rebuilds always read from
   disk, never the textarea.
-- Secrets in `workload.nix` end up world-readable in the Nix store — known
-  limitation, planned agenix/sops-style feature; warn, don't work around.
+- Secrets (Secrets tab, `internal/nix/secrets.go`, `internal/secret`,
+  `secrets` + `secret_mounts` tables): values are age-encrypted to the host's
+  SSH ed25519 key (`NIXBOX_AGE_RECIPIENT`) and persisted ONLY as ciphertext
+  (`state/secrets/<name>.age` — safe in the world-readable store; plaintext in
+  `workload.nix` still isn't, warn if you see it). agenix decrypts at
+  activation to `/run/agenix/<name>`; a "mount" delivers that file into a
+  container at the same path (nixos-container bindMounts / podman volume, per
+  the type's module), host-services read it directly. The agenix flake input
+  is LAZY: `renderFlake(inputs, withAgenix)` declares + imports it only while
+  secrets exist, and `modules/default.nix` gates `secrets.nix` on the same
+  index-derived condition — a secretless system stays input-free and offline.
+  Ordering invariants: ciphertext written before its row; deletion drops the
+  row only, `startApply` prunes orphaned `.age` files right after
+  regenerating the index (manual rebuilds must never see a dangling
+  reference).
 - No auth yet (milestone 4): bind loopback only; treat UI access as root.

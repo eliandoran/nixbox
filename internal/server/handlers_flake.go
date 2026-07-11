@@ -121,7 +121,9 @@ func (s *Server) handleFlakeApply(w http.ResponseWriter, r *http.Request) {
 
 // regenerateFlake rewrites flake.nix from the declared inputs. It mirrors
 // regenerateIndex: called at apply time so on-disk always reflects the
-// last apply, and a manual rebuild uses the last-applied inputs.
+// last apply, and a manual rebuild uses the last-applied inputs. The
+// agenix input rides along lazily — declared (and its module imported)
+// exactly when secrets exist, so a secretless system never fetches it.
 func (s *Server) regenerateFlake() error {
 	rows, err := s.store.FlakeInputs()
 	if err != nil {
@@ -135,7 +137,11 @@ func (s *Server) regenerateFlake() error {
 			FollowsNixpkgs: in.FollowsNixpkgs,
 		})
 	}
-	return s.flake.WriteFlake(inputs)
+	secrets, err := s.store.Secrets()
+	if err != nil {
+		return err
+	}
+	return s.flake.WriteFlake(inputs, len(secrets) > 0)
 }
 
 func (s *Server) lookupFlakeInput(w http.ResponseWriter, r *http.Request) (*store.FlakeInput, bool) {

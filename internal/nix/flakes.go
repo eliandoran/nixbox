@@ -34,11 +34,27 @@ const stateFlakeDescription = "nixbox-managed workloads (generated; do not edit 
 // is composed: it only makes the input available (and, once applied,
 // locked) for a consumer to reference later. Inputs are emitted in name
 // order so the file (and its lock) is stable across runs.
-func renderFlake(inputs []FlakeInput) string {
+//
+// agenix is the one exception to "declared inputs are never referenced":
+// when secrets exist (withAgenix), nixbox declares the agenix input itself
+// and imports its NixOS module into nixosModules.default, since the
+// age.secrets declarations in modules/secrets.nix need its options. This
+// is deliberately lazy — a secretless system keeps an input-free (or
+// user-inputs-only) flake and never fetches agenix. A user-declared input
+// named "agenix" takes precedence over the built-in pin.
+func renderFlake(inputs []FlakeInput, withAgenix bool) string {
 	sorted := append([]FlakeInput(nil), inputs...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Name < sorted[j].Name })
 
-	needNixpkgs := false
+	userAgenix := false
+	for _, in := range sorted {
+		if in.Name == "agenix" {
+			userAgenix = true
+		}
+	}
+	ownAgenix := withAgenix && !userAgenix
+
+	needNixpkgs := ownAgenix // the built-in agenix pin follows nixpkgs
 	for _, in := range sorted {
 		if in.FollowsNixpkgs {
 			needNixpkgs = true
@@ -56,6 +72,18 @@ func renderFlake(inputs []FlakeInput) string {
 		// nixbox-state.inputs.nixpkgs.follows at the host's nixpkgs in the
 		// host flake to collapse this onto a single nixpkgs (see README).
 		b.WriteString("    nixpkgs.url = \"github:NixOS/nixpkgs/nixos-unstable\";\n")
+	}
+	if ownAgenix {
+		// Declared by nixbox because secrets exist; agenix decrypts them
+		// during activation. darwin/home-manager are agenix extras this
+		// module set never evaluates — follows = "" drops them from the
+		// lock so declaring a secret doesn't fetch either.
+		b.WriteString("    agenix = {\n")
+		b.WriteString("      url = \"github:ryantm/agenix\";\n")
+		b.WriteString("      inputs.nixpkgs.follows = \"nixpkgs\";\n")
+		b.WriteString("      inputs.darwin.follows = \"\";\n")
+		b.WriteString("      inputs.home-manager.follows = \"\";\n")
+		b.WriteString("    };\n")
 	}
 	for _, in := range sorted {
 		key := nixAttrName(in.Name)
@@ -81,9 +109,16 @@ func renderFlake(inputs []FlakeInput) string {
 	// where `inputs` is plain data. builtins.functionArgs disambiguates the
 	// wrapper from an ordinary module function ({ config, pkgs, ... }: …),
 	// which is passed to the module system untouched.
-	b.WriteString(`  outputs = { self, ... }@inputs: {
+	baseImports := "[ ./modules/default.nix ]"
+	if withAgenix {
+		// The agenix module declares the age.* options that
+		// modules/secrets.nix (imported under the same secrets-exist
+		// condition) defines values for.
+		baseImports = "[ ./modules/default.nix inputs.agenix.nixosModules.default ]"
+	}
+	fmt.Fprintf(&b, `  outputs = { self, ... }@inputs: {
     nixosModules.default = { ... }: {
-      imports = [ ./modules/default.nix ] ++ (map
+      imports = %s ++ (map
         (path:
           let v = import path;
           in if builtins.isFunction v && (builtins.functionArgs v) ? flakeInputs
@@ -94,17 +129,18 @@ func renderFlake(inputs []FlakeInput) string {
     };
   };
 }
-`)
+`, baseImports)
 	return b.String()
 }
 
 // WriteFlake regenerates state/flake.nix from the declared flake inputs. It
 // mirrors WriteIndex: the server calls it at apply time from the input
 // registry, and Init bootstraps an input-free flake when none exists.
-// Changing inputs invalidates the lock; the pipeline re-locks before
-// rebuilding.
-func (f *StateFlake) WriteFlake(inputs []FlakeInput) error {
-	return writeFileAtomic(filepath.Join(f.Dir, "flake.nix"), []byte(renderFlake(inputs)))
+// withAgenix must mirror "the index declares secrets" — the caller derives
+// both from the same store state. Changing inputs invalidates the lock;
+// the pipeline re-locks before rebuilding.
+func (f *StateFlake) WriteFlake(inputs []FlakeInput, withAgenix bool) error {
+	return writeFileAtomic(filepath.Join(f.Dir, "flake.nix"), []byte(renderFlake(inputs, withAgenix)))
 }
 
 // nixStr renders a Nix double-quoted string literal, escaping the

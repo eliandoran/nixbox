@@ -19,6 +19,7 @@
     <nav>
       <a href="/" {{if eq .Nav "dashboard"}}class="active"{{end}}>{{T "nav.dashboard"}}</a>
       <a href="/flakes" {{if eq .Nav "flakes"}}class="active"{{end}}>{{T "nav.flakes"}}</a>
+      <a href="/secrets" {{if eq .Nav "secrets"}}class="active"{{end}}>{{T "nav.secrets"}}</a>
       <a href="/terminal" {{if eq .Nav "terminal"}}class="active"{{end}}>{{T "nav.terminal"}}</a>
       <a href="/system" {{if eq .Nav "system"}}class="active"{{end}}>{{T "nav.system"}}</a>
     </nav>

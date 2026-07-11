@@ -13,7 +13,7 @@ func TestInitIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A regenerated index must survive a second Init (service restart).
-	if err := f.WriteIndex([]IndexEntry{{Name: "web", Type: WorkloadTypeContainer}}); err != nil {
+	if err := f.WriteIndex([]IndexEntry{{Name: "web", Type: WorkloadTypeContainer}}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.Init(); err != nil {
@@ -36,6 +36,8 @@ func TestInitIdempotent(t *testing.T) {
     tcp = [ ];
     udp = [ ];
   };
+  secrets = {
+  };
 }
 `
 	if string(got) != want {
@@ -55,7 +57,7 @@ func TestWriteIndex(t *testing.T) {
 		{Name: "jellyfin", Type: WorkloadTypeHostService}, // uncontained: its own section
 		{Name: "ghost", Type: "microvm"},                  // unregistered: excluded
 	}
-	if err := f.WriteIndex(entries); err != nil {
+	if err := f.WriteIndex(entries, nil); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(filepath.Join(f.Dir, "index.nix"))
@@ -77,6 +79,8 @@ func TestWriteIndex(t *testing.T) {
   hostPorts = {
     tcp = [ ];
     udp = [ ];
+  };
+  secrets = {
   };
 }
 `
@@ -104,7 +108,7 @@ func TestWriteIndexHostPorts(t *testing.T) {
 			{Port: 1234, Proto: "tcp"}, // unregistered type: excluded entirely
 		}},
 	}
-	if err := f.WriteIndex(entries); err != nil {
+	if err := f.WriteIndex(entries, nil); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(filepath.Join(f.Dir, "index.nix"))
@@ -125,6 +129,8 @@ func TestWriteIndexHostPorts(t *testing.T) {
   hostPorts = {
     tcp = [ 443 8080 9999 ];
     udp = [ 53 ];
+  };
+  secrets = {
   };
 }
 `

@@ -135,6 +135,24 @@ func (s *Server) startApply(workloadID *int64, mode nix.RebuildMode) (*store.Job
 		appliedInputs = append(appliedInputs, in.ID)
 	}
 
+	// Snapshot secrets the same way, and prune ciphertext files orphaned
+	// by deletions — the index regenerated above no longer references
+	// them, so this is the first moment removing them can't break a
+	// manual rebuild.
+	secrets, err := s.store.Secrets()
+	if err != nil {
+		return nil, err
+	}
+	var appliedSecrets []int64
+	keep := make([]string, 0, len(secrets))
+	for _, sec := range secrets {
+		appliedSecrets = append(appliedSecrets, sec.ID)
+		keep = append(keep, sec.Name)
+	}
+	if err := s.flake.PruneSecrets(keep); err != nil {
+		return nil, err
+	}
+
 	kind := store.JobApply
 	if mode == nix.ModeBuild {
 		kind = store.JobValidate
@@ -149,6 +167,11 @@ func (s *Server) startApply(workloadID *int64, mode nix.RebuildMode) (*store.Job
 			}
 			for _, id := range appliedInputs {
 				if err := s.store.MarkFlakeInputApplied(id); err != nil {
+					return jobs.Result{ExitCode: code, Generation: gen}, err
+				}
+			}
+			for _, id := range appliedSecrets {
+				if err := s.store.MarkSecretApplied(id); err != nil {
 					return jobs.Result{ExitCode: code, Generation: gen}, err
 				}
 			}
@@ -198,5 +221,42 @@ func (s *Server) regenerateIndex() error {
 			Ports: nix.DecodeHostPorts(rev.Ports),
 		})
 	}
-	return s.flake.WriteIndex(entries)
+	secrets, err := s.indexSecrets(workloads)
+	if err != nil {
+		return err
+	}
+	return s.flake.WriteIndex(entries, secrets)
+}
+
+// indexSecrets assembles the secrets section of the index: every
+// declared secret, with its delivery mounts restricted to enabled
+// workloads of types that support them — a mount kept on a disabled
+// workload simply stays dormant, like the workload itself.
+func (s *Server) indexSecrets(workloads []store.Workload) ([]nix.IndexSecret, error) {
+	secrets, err := s.store.Secrets()
+	if err != nil || len(secrets) == 0 {
+		return nil, err
+	}
+	byID := make(map[int64]store.Workload, len(workloads))
+	for _, wl := range workloads {
+		byID[wl.ID] = wl
+	}
+	out := make([]nix.IndexSecret, 0, len(secrets))
+	for _, sec := range secrets {
+		is := nix.IndexSecret{
+			Name: sec.Name, Owner: sec.Owner, Group: sec.Group, Mode: sec.Mode,
+			Mounts: map[string][]string{},
+		}
+		for _, wid := range sec.WorkloadIDs {
+			wl, ok := byID[wid]
+			if !ok || !wl.Enabled {
+				continue
+			}
+			if wt, ok := nix.Lookup(wl.Type); ok && wt.SupportsSecretMounts {
+				is.Mounts[wt.IndexKey] = append(is.Mounts[wt.IndexKey], wl.Name)
+			}
+		}
+		out = append(out, is)
+	}
+	return out, nil
 }

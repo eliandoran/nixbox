@@ -58,6 +58,14 @@ in
   boot.loader.grub.enable = false;
   fileSystems."/" = lib.mkDefault { device = "/dev/vda"; fsType = "ext4"; };
 
+  # Secrets are encrypted to the host's SSH ed25519 key, and agenix's
+  # default identity (age.identityPaths) is derived from
+  # services.openssh.hostKeys — sshd must be on for the key to exist and
+  # for decryption to find it at activation. Real deployment hosts run
+  # sshd anyway; the VM only exposes it on its user-mode NAT (no
+  # forwarded port).
+  services.openssh.enable = true;
+
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
   # Sandboxed builds need kernel namespace setups that don't work on
   # the VM's overlayed 9p store; dev VM only, so build unsandboxed.

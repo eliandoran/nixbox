@@ -28,6 +28,8 @@ environment:
   NIXBOX_STATE_DIR   state directory       (default ./dev-state)
   NIXBOX_HOST_FLAKE  flake of this system  (default /etc/nixos)
   NIXBOX_HOST_ATTR   nixosConfigurations attribute (default: hostname)
+  NIXBOX_AGE_RECIPIENT  SSH public key secrets are encrypted to
+                     (default /etc/ssh/ssh_host_ed25519_key.pub)
   NIXBOX_DRY_RUN     if set, log commands instead of executing
 `
 
