@@ -356,6 +356,35 @@ document.addEventListener("htmx:beforeSwap", (ev) => {
   if (ev.detail.xhr.status === 422) ev.detail.shouldSwap = true;
 });
 
+// Unified confirmation: a form marked [data-confirm="message"] pops the
+// shared #confirm-dialog instead of the browser's confirm(). Submitting is
+// held until the user confirms, then the same form is resubmitted (the
+// data-confirmed flag lets that second submit through). Cancel does nothing.
+let pendingConfirm = null;
+document.addEventListener("submit", (ev) => {
+  const form = ev.target;
+  if (!(form instanceof HTMLFormElement) || !form.dataset.confirm) return;
+  if (form.dataset.confirmed) {
+    delete form.dataset.confirmed;
+    return; // already confirmed — let this submit proceed
+  }
+  ev.preventDefault();
+  pendingConfirm = form;
+  document.getElementById("confirm-message").textContent = form.dataset.confirm;
+  document.getElementById("confirm-dialog").showModal();
+});
+
+document.addEventListener("click", (ev) => {
+  if (!(ev.target instanceof Element) || !ev.target.closest("[data-confirm-ok]")) return;
+  ev.target.closest("dialog")?.close();
+  const form = pendingConfirm;
+  pendingConfirm = null;
+  if (form) {
+    form.dataset.confirmed = "1";
+    form.requestSubmit();
+  }
+});
+
 // Secrets: one dialog serves both Add and Edit. The Add button opens it
 // empty; each row's Edit button carries the secret's identity + mounts in
 // data-* attributes, and clicking it fills the form and re-points it at the

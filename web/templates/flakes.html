@@ -41,7 +41,7 @@
               {{T "common.edit"}}
             </button>
             <form method="post" action="/flakes/{{.Name}}/delete"
-                  onsubmit="return confirm('{{T "flakes.remove-confirm" .Name}}')">
+                  data-confirm="{{T "flakes.remove-confirm" .Name}}">
               <button class="danger">{{T "flakes.remove"}}</button>
             </form>
           </td>

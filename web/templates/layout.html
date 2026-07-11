@@ -57,6 +57,21 @@
   <dialog id="new-workload-dialog" class="modal modal-wide" data-lazy>
     <div id="new-workload-slot"></div>
   </dialog>
+
+  {{/* Shared confirmation modal: any form marked [data-confirm="message"]
+       opens this instead of the browser's confirm(); app.js fills the
+       message and resubmits the form on confirm. */}}
+  <dialog id="confirm-dialog" class="modal modal-danger">
+    <div class="modal-head">
+      <h2>{{T "confirm.title"}}</h2>
+      <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
+    </div>
+    <p class="hint" id="confirm-message"></p>
+    <div class="form-actions">
+      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
+      <button type="button" class="danger" data-confirm-ok>{{T "common.confirm"}}</button>
+    </div>
+  </dialog>
 </body>
 </html>{{end}}
 
