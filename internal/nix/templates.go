@@ -98,15 +98,16 @@ var ociTemplates = []Template{
 	{
 		ID:          "nginx",
 		Name:        "Web server",
-		Description: "nginx image publishing :8080 on the host; nixbox opens 8080 on the host firewall.",
+		Description: "nginx image publishing :8080 on the host via podman.",
 		Content: `{
   image = "docker.io/library/nginx:stable";
-  # Publishes host 8080 -> container 80. Keep 8080 in Host ports below so
-  # the host firewall admits it.
+  # podman publishes host 8080 -> container 80 and installs its own
+  # firewall rules for the mapping, so no Host ports entry is needed. (A
+  # host-networked container — network_mode = "host" — would drop this
+  # mapping and instead need 8080 in Host ports, like a nixos-container.)
   ports = [ "8080:80" ];
 }
 `,
-		Ports: []HostPort{{Port: 8080, Proto: "tcp"}},
 	},
 }
 
