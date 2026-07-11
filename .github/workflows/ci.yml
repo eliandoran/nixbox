@@ -24,6 +24,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # web/static/app.js is a gitignored esbuild product, so a fresh
+      # checkout lacks it and the go:embed in web/embed.go fails to build.
+      # Bundle it first, same invocation as `just bundle` / the nix preBuild.
+      # esbuild is pinned to the ^0.24.0 the web/editor bundle uses.
+      - name: bundle web assets
+        run: npx --yes esbuild@0.24 web/src/main.ts --bundle --format=iife --outfile=web/static/app.js
+
       - name: build
         run: go build ./...
 
