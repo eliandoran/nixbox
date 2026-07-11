@@ -24,16 +24,18 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      # Cache /nix/store (go toolchain, pam, esbuild, the vendored-Go FOD)
-      # in GitHub's Actions cache, keyed on the nix inputs, so runs don't
-      # re-download from cache.nixos.org. Prefix-matched, so this job and
-      # the package job warm each other.
+      # Cache /nix/store (go toolchain, pam, esbuild) in GitHub's Actions
+      # cache so runs don't re-download from cache.nixos.org. The key is
+      # per-job: the devShell and the package build have different, only
+      # partly-overlapping closures, and GitHub cache keys are immutable —
+      # a shared key lets whichever job finishes first win and forces the
+      # other to re-fetch its own paths every run.
       - uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', 'flake.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+          primary-key: nix-${{ runner.os }}-devshell-${{ hashFiles('**/*.nix', 'flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-devshell-
           purge: true
-          purge-prefixes: nix-${{ runner.os }}-
+          purge-prefixes: nix-${{ runner.os }}-devshell-
           purge-created: 0
           purge-primary-key: never
 
@@ -82,12 +84,15 @@ jobs:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
+      # Per-job key (see the devShell job's note): caching the package
+      # build's full closure means a repeat run restores the built output
+      # path too, so `nix build` is a no-op instead of a ~50s recompile.
       - uses: nix-community/cache-nix-action@v6
         with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('**/*.nix', 'flake.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
+          primary-key: nix-${{ runner.os }}-package-${{ hashFiles('**/*.nix', 'flake.lock', 'go.sum') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-package-
           purge: true
-          purge-prefixes: nix-${{ runner.os }}-
+          purge-prefixes: nix-${{ runner.os }}-package-
           purge-created: 0
           purge-primary-key: never
 
