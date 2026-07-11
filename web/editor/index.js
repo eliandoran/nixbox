@@ -70,11 +70,15 @@ const theme = EditorView.theme({
   },
   ".cm-content": { padding: "0.9rem 0", caretColor: "var(--text)" },
   ".cm-gutters": { backgroundColor: "var(--surface)", color: "var(--muted)", border: "none" },
-  ".cm-activeLine": { backgroundColor: "var(--surface-2)" },
+  // drawSelection() paints the selection in a layer CM stacks *behind* the
+  // content, so an opaque active-line fill would hide it. Keep the line fill
+  // translucent so the selection shows through on the active line; the gutter
+  // stays opaque as the strong current-line marker.
+  ".cm-activeLine": { backgroundColor: "var(--editor-active-line)" },
   ".cm-activeLineGutter": { backgroundColor: "var(--surface-2)", color: "var(--text)" },
   "&.cm-focused .cm-cursor": { borderLeftColor: "var(--text)" },
   // CM's drawSelection base theme sets a brighter focused background that
-  // outranks a plain rule, so override with !important; keep it translucent.
+  // outranks a plain rule, so override with !important.
   ".cm-selectionBackground, &.cm-focused .cm-selectionBackground": {
     background: "var(--syntax-selection) !important",
   },

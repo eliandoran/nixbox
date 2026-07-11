@@ -23,8 +23,15 @@
   --syntax-func:    var(--accent);
   --syntax-punct:   var(--muted);
   --syntax-escape:  light-dark(#c81e50, #f7768e);
-  /* Translucent so highlighted tokens stay legible under a selection. */
-  --syntax-selection: light-dark(rgba(55, 96, 191, 0.20), rgba(122, 162, 247, 0.24));
+  /* Solid selection fill. drawSelection() paints it behind the text, so the
+     highlighted tokens stay crisp on top; a solid colour reads clearly on
+     both the surface and the translucent active-line background. */
+  --syntax-selection: light-dark(#bcd3ff, #2f4d7a);
+  /* Active editor line — translucent so a selection behind it stays visible;
+     lighter in the light theme, where surface-2 is already close to white. */
+  --editor-active-line: light-dark(
+    color-mix(in srgb, var(--surface-2) 40%, transparent),
+    color-mix(in srgb, var(--surface-2) 62%, transparent));
 }
 
 :root[data-theme="light"] { color-scheme: light; }
