@@ -11,9 +11,11 @@ import (
 	"os"
 	"slices"
 	"sync"
+	"time"
 
 	"filippo.io/age"
 
+	"github.com/elian/nixbox/internal/auth"
 	"github.com/elian/nixbox/internal/config"
 	"github.com/elian/nixbox/internal/i18n"
 	"github.com/elian/nixbox/internal/jobs"
@@ -32,6 +34,21 @@ type Server struct {
 	pipeline *nix.Pipeline
 	machines *machine.Manager
 	mux      *http.ServeMux
+	// handler is mux wrapped in the auth + CSRF middleware; what
+	// Handler() serves.
+	handler http.Handler
+
+	// authn/authz are nil when cfg.Auth is "none" — requireAuth then
+	// waves everything through. Fields (not locals) so tests can script
+	// them; production wiring happens once in New.
+	authn auth.Authenticator
+	authz auth.Authorizer
+	// limiter throttles login failures per client IP; loginFailDelay
+	// slows each failed attempt (0 in tests); now is the auth clock,
+	// swappable to test session expiry.
+	limiter        *loginLimiter
+	loginFailDelay time.Duration
+	now            func() time.Time
 
 	// mu guards pages and i18n, which dev mode rebuilds per request
 	// (loadCatalogs/parseTemplates) while other requests read them. In
@@ -57,6 +74,15 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 		machines:      mm,
 		mux:           http.NewServeMux(),
 		loadRecipient: secret.LoadRecipient,
+		limiter:       newLoginLimiter(5, time.Minute),
+		loginFailDelay: 500 * time.Millisecond,
+		now:            time.Now,
+	}
+	if cfg.Auth == config.AuthPAM {
+		// The NixOS module declares the matching PAM service; the group
+		// gate keeps a valid Unix login from being sufficient on its own.
+		s.authn = &auth.PAM{Service: "nixbox"}
+		s.authz = auth.NewGroupGate(cfg.AllowedGroups)
 	}
 
 	if err := s.loadCatalogs(); err != nil {
@@ -73,6 +99,9 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServerFS(static)))
 
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
+	s.mux.HandleFunc("GET /login", s.handleLoginPage)
+	s.mux.HandleFunc("POST /login", s.handleLoginSubmit)
+	s.mux.HandleFunc("POST /logout", s.handleLogout)
 	s.mux.HandleFunc("POST /lang", s.handleSetLang)
 	s.mux.HandleFunc("GET /partials/workloads", s.handleWorkloadList)
 	s.mux.HandleFunc("GET /workloads/new", s.handleWorkloadNew)
@@ -116,10 +145,16 @@ func New(cfg config.Config, st *store.Store, flake *nix.StateFlake, jm *jobs.Man
 	s.mux.HandleFunc("GET /events/jobs/{id}", s.handleJobEvents)
 	s.mux.HandleFunc("GET /events/metrics", s.handleMetrics)
 
+	// Sessions gate the routes; CrossOriginProtection outside rejects
+	// cross-site browser POSTs (Sec-Fetch-Site/Origin) so no form needs a
+	// CSRF token — SameSite=Lax on the cookie is the second belt.
+	csrf := http.NewCrossOriginProtection()
+	s.handler = csrf.Handler(s.requireAuth(s.mux))
+
 	return s, nil
 }
 
-func (s *Server) Handler() http.Handler { return s.mux }
+func (s *Server) Handler() http.Handler { return s.handler }
 
 // assetFS returns the filesystem backing /static and the templates,
 // rooted so that "static" and "templates/..." resolve. In dev mode it
@@ -214,6 +249,13 @@ func (s *Server) parseTemplates() error {
 		}
 		m[name] = t
 	}
+	// The login page stands alone — no layout, since the sidebar and
+	// topbar presume an authenticated user.
+	login, err := template.New("login").Funcs(funcs).ParseFS(src, "templates/login.html")
+	if err != nil {
+		return err
+	}
+	m["login"] = login
 	s.mu.Lock()
 	s.pages = m
 	s.mu.Unlock()
@@ -230,6 +272,7 @@ type baseData struct {
 	WorkloadGroups []workloadGroup
 	Lang           string         // resolved locale, marks the picker's selection
 	Locales        []localeOption // loaded catalogs, for the language picker
+	Username       string         // logged-in user; "" hides the logout control (auth off)
 }
 
 // localeOption is one language-picker entry: the locale code and its
@@ -240,7 +283,7 @@ type localeOption struct {
 }
 
 func (s *Server) base(r *http.Request, title, nav string) baseData {
-	b := baseData{Title: title, Nav: nav, HostAttr: s.cfg.HostAttr}
+	b := baseData{Title: title, Nav: nav, HostAttr: s.cfg.HostAttr, Username: username(r)}
 	b.Lang = s.localizer(r).Lang()
 	bundle := s.bundle()
 	for _, code := range bundle.Locales() {

@@ -8,12 +8,16 @@ nixbox is a self-hosted web UI (Go + HTMX, single static binary) for managing a
 NixOS server's declarative containers. Users edit each container's config as a
 raw Nix expression in the browser; nixbox composes them into the system flake,
 runs `nixos-rebuild`, and streams status/logs. It runs as root on the machine
-it manages. Milestones 1–2 plus container logs are done; remaining roadmap:
-generations/rollback, flake input updates, export, then auth (see git log).
+it manages. Milestones 1–2, container logs, and auth (milestone 4: PAM login,
+sessions, CSRF) are done; remaining roadmap: generations/rollback, flake input
+updates, export (see git log).
 
 ## Commands
 
 ```bash
+# Run Go commands from the devShell: the PAM auth backend is cgo and needs
+# libpam from it. CGO_ENABLED=0 works anywhere but swaps in the fail-closed
+# PAM stub (and skips the real-PAM tests).
 go build ./... && go vet ./... && go test ./...   # standard check
 go test ./... -cover                              # per-package coverage (check after every change)
 go test ./internal/nix -run TestWriteIndex        # single test
@@ -34,12 +38,16 @@ just typecheck    # tsc -p web — esbuild only strips types, it never checks th
 (cd web/editor && npm ci && npm run build)
 
 # Dev server — safe on any machine, full UI works (`just dev` wraps this):
-NIXBOX_DRY_RUN=1 NIXBOX_TERMINAL=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve
+NIXBOX_DRY_RUN=1 NIXBOX_TERMINAL=1 NIXBOX_AUTH=none NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve
 # → http://127.0.0.1:8368 (NIXBOX_LISTEN=127.0.0.1:PORT to change)
+# NIXBOX_AUTH=none skips the login screen; the binary default is pam, which
+# on a machine without an /etc/pam.d/nixbox service rejects every login.
 
 # Dev VM — for REAL rebuilds; never test real applies on the host:
 nix build .#vm && ./result/bin/run-testhost-vm
 # → UI http://localhost:18368, nginx template container http://localhost:18080
+# Web login (real PAM): admin/nixbox or root/nixbox; guest/nixbox exists to
+# prove the wheel gate rejects valid-but-unprivileged accounts.
 ```
 
 `NIXBOX_DRY_RUN=1` swaps the command runner for a logger and downgrades
@@ -50,9 +58,10 @@ check, journalctl) still run for real by design.
 shell over a WebSocket). It is deliberately *not* tied to dry-run — a live
 shell is arbitrary user execution, not a nixbox-issued command dry-run can
 neuter — so it stays behind its own opt-in and is off by default. Enabling it
-is equivalent to publishing a root console; only safe once auth (milestone 4)
-lands. The dev recipe turns it on because it is loopback-bound and runs as the
-dev user.
+publishes a root console: with auth=pam it sits behind the login like every
+other route, but it remains a separate opt-in on top (a shell is a bigger
+grant than buttons). The dev recipe turns it on because it is loopback-bound
+and runs as the dev user.
 
 ## Testing & coverage (the bar is 100%)
 
@@ -69,6 +78,12 @@ Reuse the established idioms instead of inventing new harnesses:
   `internal/server/handlers_secrets_test.go`; fault the store with
   `dropTable` (lookups 500) and `denyWrites` (RAISE triggers: reads work,
   the mutation itself fails), via a second SQLite connection.
+- **Auth**: `enableAuth` swaps scripted `fakeAuthn`/`fakeAuthz` into a test
+  server (`handlers_auth_test.go`); the PAM backend itself is tested with
+  *real* transactions — `pam.StartConfDir` service files scripted against
+  `$NIXBOX_PAM_TEST_MODULES` (pam_permit/pam_deny, exported by the
+  devShell) — no root, no /etc/pam.d. Session expiry runs on the injected
+  `Server.now` clock; the limiter on its own `now` field.
 - **External commands**: never run real mutating commands — substitute
   `run.Runner` (scripted/recording/fail runners exist in
   `internal/nix/rebuild_test.go`, `internal/machine/manager_test.go`,
@@ -85,9 +100,10 @@ Reuse the established idioms instead of inventing new harnesses:
 
 Legitimate residual (don't build mock SQL drivers to paint it green):
 `os.Exit` legs, unfaultable defensive returns (`LastInsertId`, `sql.Open`,
-`Commit`), environment-dependent fallbacks (`os.Hostname`, `/etc/os-release`,
-missing nix toolchain), and live-integration paths (journalctl follow,
-WebSocket/PTY pump) — the latter belong to the verify skill, not unit tests.
+`Commit`, `crypto/rand.Read`), environment-dependent fallbacks (`os.Hostname`,
+`/etc/os-release`, missing nix toolchain), and live-integration paths
+(journalctl follow, WebSocket/PTY pump) — the latter belong to the verify
+skill, not unit tests.
 Read-only nix/sh commands (`nix-instantiate --parse`, `echo`) run for real in
 tests by design, mirroring dry-run's contract.
 
@@ -246,4 +262,17 @@ untranslated by design.
   row only, `startApply` prunes orphaned `.age` files right after
   regenerating the index (manual rebuilds must never see a dangling
   reference).
-- No auth yet (milestone 4): bind loopback only; treat UI access as root.
+- Auth (`internal/auth` + `internal/server/handlers_auth.go`): the default
+  backend is PAM — the NixOS module generates the `nixbox` service
+  (`security.pam.services.nixbox = {}`) and real Unix users log in; a valid
+  password alone is *not* enough, the group gate (`NIXBOX_ALLOWED_GROUPS`,
+  default wheel; uid 0 always passes) must also admit the user. Sessions are
+  32-byte random cookie tokens stored only as SHA-256 in the `sessions`
+  table, 7-day sliding expiry touched at most hourly. CSRF is header-based
+  (stdlib `http.CrossOriginProtection` wraps the whole mux — no form tokens)
+  plus SameSite=Lax; login failures cost 500 ms, PAM transactions are
+  serialized, and 5 failures/min/IP answer 429. Public paths: `/login`,
+  `/lang`, `/static/*`. `NIXBOX_AUTH=none` disables the layer (dev,
+  reverse-proxy auth) — still loopback-only advice. Key-only admin accounts
+  (`hashedPassword = "!"`) cannot password-login: set
+  `users.users.<x>.hashedPassword` to use nixbox on such hosts.

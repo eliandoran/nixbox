@@ -31,6 +31,13 @@ import (
 // in main, minus the listener.
 func newTestServer(t *testing.T) *Server {
 	t.Helper()
+	return newTestServerWith(t, nil)
+}
+
+// newTestServerWith lets a test adjust the config before the Server is
+// built (e.g. enabling the auth backend).
+func newTestServerWith(t *testing.T, mutate func(*config.Config)) *Server {
+	t.Helper()
 	dir := t.TempDir()
 
 	pub, _, err := ed25519.GenerateKey(nil)
@@ -54,6 +61,9 @@ func newTestServer(t *testing.T) *Server {
 		AgeRecipient: keyPath,
 		DryRun:       true,
 		Lang:         "en",
+	}
+	if mutate != nil {
+		mutate(&cfg)
 	}
 	flake := &nix.StateFlake{Dir: cfg.StateFlakeDir()}
 	if err := flake.Init(); err != nil {

@@ -12,11 +12,13 @@
 // the request context, which kills the shell — the same lifetime rule as
 // the journal stream in sse.go.
 //
-// NOT production-ready: no auth, same-origin only, no session persistence
-// across a nixbox restart. It deliberately bypasses run.Runner (an
-// interactive PTY has no dry-run analogue), so it is gated behind its own
-// explicit opt-in (NIXBOX_TERMINAL / cfg.EnableTerminal) rather than
-// DryRun — see config.Config.EnableTerminal for why the two are separate.
+// Like every route it sits behind the session middleware when auth is
+// enabled, but a live shell is a bigger grant than buttons, so it stays
+// behind its own explicit opt-in (NIXBOX_TERMINAL / cfg.EnableTerminal)
+// on top. It deliberately bypasses run.Runner (an interactive PTY has no
+// dry-run analogue) — see config.Config.EnableTerminal for why the
+// opt-in is separate from DryRun. No session persistence across a nixbox
+// restart; same-origin only.
 package server
 
 import (
@@ -107,8 +109,9 @@ func (s *Server) serveTerminal(w http.ResponseWriter, r *http.Request, argv []st
 	}
 
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		// Same-origin only. A real build must check Origin against the
-		// configured host once auth exists (milestone 4).
+		// Same-origin only: the session cookie authenticates the
+		// upgrade, so a foreign page must not be able to open a socket
+		// with it.
 		OriginPatterns: []string{r.Host},
 	})
 	if err != nil {

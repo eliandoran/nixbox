@@ -31,6 +31,9 @@ environment:
   NIXBOX_AGE_RECIPIENT  SSH public key secrets are encrypted to
                      (default /etc/ssh/ssh_host_ed25519_key.pub)
   NIXBOX_DRY_RUN     if set, log commands instead of executing
+  NIXBOX_AUTH        login backend: pam or none    (default pam)
+  NIXBOX_ALLOWED_GROUPS  groups whose members may log in, comma-
+                     separated; root always may    (default wheel)
 `
 
 func main() {
@@ -39,9 +42,12 @@ func main() {
 		os.Exit(2)
 	}
 
-	cfg := config.FromEnv()
+	cfg, err := config.FromEnv()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n\n%s", err, usage)
+		os.Exit(2)
+	}
 
-	var err error
 	switch os.Args[1] {
 	case "serve":
 		err = serve(cfg)
@@ -70,7 +76,8 @@ func serve(cfg config.Config) error {
 		"stateDir", cfg.StateDir,
 		"hostFlake", cfg.HostFlake,
 		"hostAttr", cfg.HostAttr,
-		"dryRun", cfg.DryRun)
+		"dryRun", cfg.DryRun,
+		"auth", cfg.Auth)
 
 	flake := &nix.StateFlake{Dir: cfg.StateFlakeDir()}
 	if err := flake.Init(); err != nil {

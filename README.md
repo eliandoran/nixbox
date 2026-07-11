@@ -79,11 +79,12 @@ $ just dev
 
 The devShell provides `just` as a command runner (`just --list` shows
 the recipes). `just dev` starts the dry-run server
-(`NIXBOX_DRY_RUN=1 NIXBOX_TERMINAL=1 NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve`);
+(`NIXBOX_DRY_RUN=1 NIXBOX_TERMINAL=1 NIXBOX_AUTH=none NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve`);
 `NIXBOX_DRY_RUN` logs commands instead of executing them, so the full UI
-can be exercised without touching the system, and `NIXBOX_TERMINAL=1`
-enables the web terminal (off by default; it exposes a live shell). Real
-rebuilds should only be tested in a VM.
+can be exercised without touching the system, `NIXBOX_TERMINAL=1`
+enables the web terminal (off by default; it exposes a live shell), and
+`NIXBOX_AUTH=none` skips the login screen (the packaged default is PAM).
+Real rebuilds should only be tested in a VM.
 
 ### Dev VM (real rebuilds, disposable)
 
@@ -102,6 +103,11 @@ State lives in `testhost.qcow2` in your working directory; delete it
 for a fresh machine. Console auto-login as root (password `nixbox`),
 headless via `QEMU_OPTS="-display none"`.
 
+The web UI asks for a login (real PAM inside the VM): use `admin` /
+`nixbox` (a wheel member) or `root` / `nixbox`. A third account,
+`guest` / `nixbox`, has a valid password but no admin group — it exists
+to demonstrate that authentication alone does not grant access.
+
 **Shut the VM down gracefully** — run `poweroff` in the console (or
 send `system_powerdown` to a QEMU monitor). Killing QEMU or closing
 its window is a power cut: files written inside the guest (container
@@ -115,3 +121,30 @@ Set through the `services.nixbox` NixOS module (see `nix/module.nix`):
 listen address (default `127.0.0.1:8368`), host flake path (default
 `/etc/nixos`), and the `nixosConfigurations` attribute to rebuild
 (default: the hostname).
+
+### Authentication
+
+Signing in is on by default (`services.nixbox.auth = "pam"`): the module
+generates a standard `nixbox` PAM service, so you log in with a real
+system account — nixbox stores no credentials of its own. A valid
+password alone is not enough: the account must also belong to one of
+`services.nixbox.allowedGroups` (default `[ "wheel" ]`; root is always
+allowed), because nixbox is root-equivalent by design.
+
+Two caveats worth knowing:
+
+- **Key-only admin accounts cannot sign in.** If your user has no Unix
+  password (SSH keys only, `hashedPassword = "!"`), PAM has nothing to
+  verify. Set `users.users.<you>.hashedPassword` (e.g. from
+  `mkpasswd -m yescrypt`) to use nixbox on such a host. This puts a
+  password *hash* in the world-readable store — standard NixOS practice
+  for `hashedPassword`, but worth being deliberate about.
+- `auth = "none"` disables the login entirely — only for trusted
+  loopback use or behind a reverse proxy that authenticates for you
+  (the module warns if you combine it with `openFirewall`).
+
+Brute force is blunted in depth: failed logins cost half a second, PAM
+checks are serialized, and five failures per minute per client IP answer
+`429`. Sessions are 7-day sliding cookies (HttpOnly, SameSite=Lax) whose
+tokens are stored only hashed; cross-site request forgery is rejected
+from the `Sec-Fetch-Site`/`Origin` headers, with no form tokens needed.

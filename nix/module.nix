@@ -36,6 +36,29 @@ in
       default = false;
       description = "Open the firewall for the listen port. Only relevant when listening on a non-loopback address.";
     };
+
+    auth = lib.mkOption {
+      type = lib.types.enum [ "pam" "none" ];
+      default = "pam";
+      description = ''
+        Login backend. "pam" authenticates real system users against the
+        generated nixbox PAM service (password logins — a key-only admin
+        account needs users.users.<name>.hashedPassword set to sign in).
+        "none" serves the interface unauthenticated: only for trusted
+        loopback use or behind a reverse proxy that does its own auth.
+      '';
+    };
+
+    allowedGroups = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = [ "wheel" ];
+      description = ''
+        Unix groups whose members may log in when auth = "pam". A valid
+        password alone is deliberately not enough — nixbox is
+        root-equivalent, so an ordinary account must not qualify. root
+        itself is always allowed.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -62,6 +85,8 @@ in
         NIXBOX_HOST_FLAKE = cfg.hostFlake;
         NIXBOX_HOST_ATTR = cfg.hostAttr;
         NIXBOX_STATE_DIR = "/var/lib/nixbox";
+        NIXBOX_AUTH = cfg.auth;
+        NIXBOX_ALLOWED_GROUPS = lib.concatStringsSep "," cfg.allowedGroups;
       };
 
       serviceConfig = {
@@ -84,5 +109,13 @@ in
     networking.firewall.allowedTCPPorts = lib.mkIf cfg.openFirewall [
       (lib.toInt (lib.last (lib.splitString ":" cfg.listenAddress)))
     ];
+
+    # An empty service definition yields NixOS's standard pam_unix stack
+    # (auth/account/password/session) at /etc/pam.d/nixbox — the same
+    # mechanism Cockpit uses. nixbox runs as root, so no shadow tricks.
+    security.pam.services.nixbox = lib.mkIf (cfg.auth == "pam") { };
+
+    warnings = lib.optional (cfg.auth == "none" && cfg.openFirewall)
+      "services.nixbox: auth = \"none\" with openFirewall = true — anyone who can reach ${cfg.listenAddress} controls this machine.";
   };
 }

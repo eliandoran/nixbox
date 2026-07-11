@@ -30,7 +30,8 @@ dev:
     while true; do
         echo "▶ building…"
         if go build -o "$tmp/nixbox" ./cmd/nixbox; then
-            NIXBOX_DRY_RUN=1 NIXBOX_DEV=1 NIXBOX_TERMINAL=1 NIXBOX_STATE_DIR=./dev-state \
+            NIXBOX_DRY_RUN=1 NIXBOX_DEV=1 NIXBOX_TERMINAL=1 NIXBOX_AUTH=none \
+                NIXBOX_STATE_DIR=./dev-state \
                 NIXBOX_AGE_RECIPIENT=./dev-state/age-recipient.pub "$tmp/nixbox" serve &
             pid=$!
             echo "  http://127.0.0.1:8368 (pid $pid) — Enter to rebuild & restart, Ctrl-C to quit."

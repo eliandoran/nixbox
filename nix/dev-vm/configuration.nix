@@ -127,6 +127,20 @@ in
   services.getty.autologinUser = "root";
   users.users.root.initialPassword = "nixbox";
 
+  # Web-login test accounts against the real PAM stack (the module
+  # defaults to auth = "pam"): admin is in wheel so the group gate lets
+  # it in; guest has a valid password but no admin group, so the UI must
+  # authenticate it and still turn it away.
+  users.users.admin = {
+    isNormalUser = true;
+    extraGroups = [ "wheel" ];
+    initialPassword = "nixbox";
+  };
+  users.users.guest = {
+    isNormalUser = true;
+    initialPassword = "nixbox";
+  };
+
   virtualisation.vmVariant.virtualisation = {
     # Sized for realising a heavyweight flake-input workload (e.g. the
     # nixarr/Jellyfin stack: multi-GB substitutions plus in-guest builds

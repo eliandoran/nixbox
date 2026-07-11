@@ -97,6 +97,10 @@ var migrations = []string{
 		PRIMARY KEY (secret_id, workload_id)
 	);
 	`,
+	// The sessions table predates auth (milestone 4) but never recorded
+	// who logged in; the PAM backend authenticates real Unix users, so a
+	// session now carries its username (shown in the topbar and logged).
+	`ALTER TABLE sessions ADD COLUMN username TEXT NOT NULL DEFAULT '';`,
 }
 
 func (s *Store) migrate() error {

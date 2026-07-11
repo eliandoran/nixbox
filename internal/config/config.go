@@ -3,8 +3,19 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
+)
+
+// Auth backends. PAM asks the host's PAM stack (the "nixbox" service) to
+// verify a Unix user's password and is the production default; None serves
+// everything unauthenticated, for dry-run dev servers and setups that
+// terminate auth at a reverse proxy.
+const (
+	AuthPAM  = "pam"
+	AuthNone = "none"
 )
 
 type Config struct {
@@ -30,8 +41,8 @@ type Config struct {
 	// terminal). Off by default and orthogonal to DryRun: dry-run governs
 	// whether nixbox mutates the system, whereas a live shell is arbitrary
 	// user execution that dry-run cannot neuter, so it stays behind its own
-	// explicit opt-in. Treat enabling it as handing out a root console —
-	// only safe once auth (milestone 4) exists.
+	// explicit opt-in. It is gated by the login like every route, but a
+	// root console is a bigger grant than buttons — hence the extra switch.
 	EnableTerminal bool
 	// Dev serves static assets and templates live from ./web on disk
 	// (and re-parses templates per request) so JS/CSS/HTML edits show
@@ -42,9 +53,18 @@ type Config struct {
 	// preference (no cookie, no matching Accept-Language). Falls back to
 	// English if the catalog is missing.
 	Lang string
+	// Auth selects the login backend (AuthPAM or AuthNone). The default
+	// is PAM — a bare binary fails closed rather than serving a root-
+	// equivalent UI unauthenticated; dev setups opt out explicitly.
+	Auth string
+	// AllowedGroups lists the Unix groups whose members may log in when
+	// Auth is PAM. Authentication alone is deliberately not enough: any
+	// PAM-valid user would otherwise control the machine. root is always
+	// allowed.
+	AllowedGroups []string
 }
 
-func FromEnv() Config {
+func FromEnv() (Config, error) {
 	cfg := Config{
 		Listen:         envOr("NIXBOX_LISTEN", "127.0.0.1:8368"),
 		StateDir:       envOr("NIXBOX_STATE_DIR", "./dev-state"),
@@ -55,8 +75,25 @@ func FromEnv() Config {
 		EnableTerminal: os.Getenv("NIXBOX_TERMINAL") != "",
 		Dev:            os.Getenv("NIXBOX_DEV") != "",
 		Lang:           envOr("NIXBOX_LANG", "en"),
+		Auth:           envOr("NIXBOX_AUTH", AuthPAM),
+		AllowedGroups:  splitGroups(envOr("NIXBOX_ALLOWED_GROUPS", "wheel")),
 	}
-	return cfg
+	if cfg.Auth != AuthPAM && cfg.Auth != AuthNone {
+		return Config{}, fmt.Errorf("NIXBOX_AUTH=%q: must be %q or %q", cfg.Auth, AuthPAM, AuthNone)
+	}
+	return cfg, nil
+}
+
+// splitGroups parses the comma-separated NIXBOX_ALLOWED_GROUPS value,
+// ignoring blanks so trailing commas and spacing don't matter.
+func splitGroups(v string) []string {
+	var out []string
+	for g := range strings.SplitSeq(v, ",") {
+		if g = strings.TrimSpace(g); g != "" {
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 // StateFlakeDir is the directory holding the nixbox-managed flake

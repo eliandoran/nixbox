@@ -1,0 +1,32 @@
+{{define "login-page"}}<!doctype html>
+<html lang="{{lang}}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{.Title}} · nixbox</title>
+  <script>
+    var theme = localStorage.getItem("nixbox-theme");
+    if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+  </script>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="login-body">
+  <main class="card login-card">
+    <div class="brand">nix<span>box</span></div>
+    <h1>{{T "login.title"}}</h1>
+    <p class="hint">{{T "login.intro"}}</p>
+    {{if .Error}}<p class="login-error" role="alert">{{.Error}}</p>{{end}}
+    <form method="post" action="/login" class="login-form">
+      <input type="hidden" name="next" value="{{.Next}}">
+      <label class="field-label" for="login-username">{{T "login.username"}}</label>
+      <input id="login-username" name="username" autocomplete="username"
+             autocapitalize="none" spellcheck="false" required autofocus>
+      <label class="field-label" for="login-password">{{T "login.password"}}</label>
+      <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+      <div class="form-actions">
+        <button type="submit" class="primary login-submit">{{T "login.submit"}}</button>
+      </div>
+    </form>
+  </main>
+</body>
+</html>{{end}}

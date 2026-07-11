@@ -35,6 +35,13 @@
             esbuild
             typescript
           ];
+          # The PAM auth backend is cgo: go build/test need libpam's
+          # headers, so run them from this shell (CGO_ENABLED=0 works
+          # anywhere but swaps in the fail-closed PAM stub).
+          buildInputs = [ pkgs.pam ];
+          # Lets the auth tests script real PAM stacks (pam_permit /
+          # pam_deny) in a temp conf dir instead of touching /etc/pam.d.
+          NIXBOX_PAM_TEST_MODULES = "${pkgs.pam}/lib/security";
         };
       });
 

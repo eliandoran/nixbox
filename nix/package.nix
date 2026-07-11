@@ -1,4 +1,4 @@
-{ lib, buildGoModule, esbuild }:
+{ lib, buildGoModule, esbuild, pam }:
 
 buildGoModule {
   pname = "nixbox";
@@ -14,7 +14,7 @@ buildGoModule {
            || lib.hasPrefix "web/editor/" rel);
   };
 
-  vendorHash = "sha256-gwY10YMMUCLGen8jfcqBzZmlEcTz2YJepIQotHVwHF8=";
+  vendorHash = "sha256-JAZm/KDQAE9aJpGgOa7ZGDW7M1hiASi3GNlcwqQZM58=";
 
   subPackages = [ "cmd/nixbox" ];
 
@@ -25,6 +25,10 @@ buildGoModule {
   preBuild = ''
     esbuild web/src/main.ts --bundle --format=iife --outfile=web/static/app.js
   '';
+
+  # The PAM auth backend is cgo (see the devShell note in flake.nix):
+  # the packaged binary links against libpam for real logins.
+  buildInputs = [ pam ];
 
   ldflags = [ "-s" "-w" ];
 
