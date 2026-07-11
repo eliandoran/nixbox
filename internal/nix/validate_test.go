@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -60,5 +61,37 @@ func TestCheckEval(t *testing.T) {
 		if err := CheckEval(ctx, writeNix(t, `builtins.undefinedThing`)); err == nil {
 			t.Error("expected an eval error, got nil")
 		}
+	}
+}
+
+func TestCheckSyntax(t *testing.T) {
+	if _, err := exec.LookPath("nix-instantiate"); err != nil {
+		t.Skip("nix-instantiate not available")
+	}
+	ctx := context.Background()
+	if err := CheckSyntax(ctx, writeNix(t, `{ autoStart = true; }`)); err != nil {
+		t.Errorf("valid expression: %v", err)
+	}
+	if err := CheckSyntax(ctx, writeNix(t, `{ oops`)); err == nil {
+		t.Error("unterminated attrset: want parse error")
+	}
+}
+
+func TestCleanNixError(t *testing.T) {
+	if got := cleanNixError("  \n \n"); got != "nix reported an unknown error" {
+		t.Errorf("empty output = %q", got)
+	}
+	// Trace location lines and blanks are dropped.
+	got := cleanNixError("error: boom\n\n   at «string»:1:1:\nmore detail")
+	if strings.Contains(got, "at «") || strings.Contains(got, "\n\n") {
+		t.Errorf("noise kept: %q", got)
+	}
+	if !strings.Contains(got, "error: boom") || !strings.Contains(got, "more detail") {
+		t.Errorf("content lost: %q", got)
+	}
+	// Long diagnostics truncate with an ellipsis marker.
+	long := strings.Repeat("line\n", 20)
+	if got := cleanNixError(long); !strings.Contains(got, "…") || strings.Count(got, "\n") > 9 {
+		t.Errorf("not truncated: %q", got)
 	}
 }
