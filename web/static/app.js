@@ -396,6 +396,55 @@ function initSecretDialog() {
 }
 document.addEventListener("DOMContentLoaded", initSecretDialog);
 
+// Flake inputs: same double-role dialog pattern as secrets. Add opens it
+// empty; each row's Edit button carries the input's ref + follows flag in
+// data-* attributes, fills the form, and re-points it at the per-input save
+// endpoint. Both roles submit as a normal form (server redirects back).
+function initFlakeDialog() {
+  const dlg = document.getElementById("flake-dialog");
+  if (!dlg) return;
+  const form = document.getElementById("flake-form");
+  const title = document.getElementById("flake-dialog-title");
+  const submit = document.getElementById("flake-submit");
+  const nameInput = form.elements.name;
+  const follows = form.elements.follows_nixpkgs;
+
+  document.addEventListener("click", (ev) => {
+    if (!(ev.target instanceof Element)) return;
+
+    if (ev.target.closest("[data-add-input]")) {
+      form.reset();
+      form.action = "/flakes";
+      title.textContent = dlg.dataset.titleAdd;
+      submit.textContent = dlg.dataset.submitAdd;
+      nameInput.disabled = false;
+      nameInput.required = true;
+      dlg.showModal();
+      nameInput.focus();
+      return;
+    }
+
+    const edit = ev.target.closest("[data-edit-input]");
+    if (edit) {
+      const d = edit.dataset;
+      form.reset();
+      form.action = "/flakes/" + encodeURIComponent(d.editInput) + "/save";
+      title.textContent = dlg.dataset.titleEdit;
+      submit.textContent = dlg.dataset.submitEdit;
+      // Name is the immutable key; show it read-only (disabled → not
+      // submitted, and the save endpoint reads the name from the URL).
+      nameInput.value = d.editInput;
+      nameInput.disabled = true;
+      nameInput.required = false;
+      form.elements.url.value = d.ref;
+      follows.checked = d.follows === "1";
+      dlg.showModal();
+      form.elements.url.focus();
+    }
+  });
+}
+document.addEventListener("DOMContentLoaded", initFlakeDialog);
+
 // Language picker: picking a locale submits the topbar form, which sets
 // the nixbox-lang cookie and redirects back (a full reload re-renders
 // everything in the new language). Works without JS via Enter-to-submit.

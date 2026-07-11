@@ -3,8 +3,9 @@
   <div class="section-head">
     <h2>{{T "flakes.title"}}</h2>
     <div class="action-bar">
+      <button type="button" class="primary" data-add-input>{{T "flakes.add-input"}}</button>
       <form hx-post="/flakes/apply" hx-target="#job-panel" hx-swap="innerHTML">
-        <button class="primary" {{if .Busy}}disabled{{end}}>{{T "common.apply"}}</button>
+        <button {{if .Busy}}disabled{{end}}>{{T "common.apply"}}</button>
       </form>
     </div>
   </div>
@@ -14,16 +15,65 @@
   {{if .Flash}}<div class="banner banner-ok">{{.Flash}}</div>{{end}}
   {{if .Error}}<div class="banner banner-error">{{.Error}}</div>{{end}}
 
-  <form method="post" action="/flakes" class="card form">
-    <h3>{{T "flakes.add-input"}}</h3>
-    <label for="name">{{T "flakes.name"}}</label>
-    <input type="text" id="name" name="name" required autocomplete="off"
-           pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" maxlength="63" placeholder="nixflix">
-    <p class="hint">{{T "flakes.name-hint"}}
-    <code>inputs.&lt;name&gt;</code>.</p>
+  {{if .Inputs}}
+  <div class="card">
+    <table class="jobs flakes-table">
+      <thead>
+        <tr>
+          <th>{{T "flakes.name"}}</th>
+          <th>{{T "flakes.ref"}}</th>
+          <th>{{T "flakes.col-state"}}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Inputs}}
+        <tr>
+          <td><code>{{.Name}}</code></td>
+          <td>
+            <code>{{.URL}}</code>
+            {{if .FollowsNixpkgs}}<span class="badge">{{T "flakes.follows"}}</span>{{end}}
+          </td>
+          <td><span class="badge state-{{if eq .Status "locked"}}applied{{else}}pending{{end}}">{{TDef (printf "flakes.status.%s" .Status) .Status}}</span></td>
+          <td class="row-actions">
+            <button type="button" data-edit-input="{{.Name}}"
+                    data-ref="{{.URL}}" data-follows="{{if .FollowsNixpkgs}}1{{end}}">
+              {{T "common.edit"}}
+            </button>
+            <form method="post" action="/flakes/{{.Name}}/delete"
+                  onsubmit="return confirm('{{T "flakes.remove-confirm" .Name}}')">
+              <button class="danger">{{T "flakes.remove"}}</button>
+            </form>
+          </td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{else}}
+  <p class="empty">{{T "flakes.empty"}}</p>
+  {{end}}
 
-    <label for="url">{{T "flakes.ref"}}</label>
-    <input type="text" id="url" name="url" required autocomplete="off" placeholder="github:owner/repo">
+  <div id="job-panel"></div>
+</section>
+
+<dialog id="flake-dialog" class="modal"
+        data-title-add="{{T "flakes.add-input"}}"
+        data-title-edit="{{T "flakes.edit-input"}}"
+        data-submit-add="{{T "flakes.add"}}"
+        data-submit-edit="{{T "common.save"}}">
+  <div class="modal-head">
+    <h2 id="flake-dialog-title">{{T "flakes.add-input"}}</h2>
+    <button type="button" class="modal-close" data-close-dialog aria-label="{{T "common.close"}}">&times;</button>
+  </div>
+  <form id="flake-form" method="post" action="/flakes" class="form">
+    <label for="flake-name">{{T "flakes.name"}}</label>
+    <input type="text" id="flake-name" name="name" required autocomplete="off"
+           pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" maxlength="63" placeholder="nixflix">
+    <p class="hint">{{T "flakes.name-hint"}} <code>inputs.&lt;name&gt;</code>.</p>
+
+    <label for="flake-url">{{T "flakes.ref"}}</label>
+    <input type="text" id="flake-url" name="url" required autocomplete="off" placeholder="github:owner/repo">
     <p class="hint">{{T "flakes.ref-hint"}} <code>github:owner/repo</code>,
     <code>github:owner/repo/ref</code>, <code>git+https://…</code>, <code>path:/…</code>.</p>
 
@@ -33,41 +83,9 @@
     <p class="hint">{{T "flakes.follow-hint"}}</p>
 
     <div class="form-actions">
-      <button type="submit" class="primary">{{T "flakes.add"}}</button>
+      <button type="button" data-close-dialog>{{T "common.cancel"}}</button>
+      <button type="submit" class="primary" id="flake-submit">{{T "flakes.add"}}</button>
     </div>
   </form>
-
-  {{if .Inputs}}
-  <table class="jobs">
-    <thead><tr><th>{{T "flakes.name"}}</th><th>{{T "flakes.ref"}}</th><th>{{T "flakes.col-state"}}</th><th></th></tr></thead>
-    <tbody>
-      {{range .Inputs}}
-      <tr>
-        <td><code>{{.Name}}</code></td>
-        <td>
-          <form method="post" action="/flakes/{{.Name}}/save" class="row-form">
-            <input type="text" name="url" value="{{.URL}}" required autocomplete="off">
-            <label class="checkbox hint">
-              <input type="checkbox" name="follows_nixpkgs" {{if .FollowsNixpkgs}}checked{{end}}> {{T "flakes.follows"}}
-            </label>
-            <button>{{T "common.save"}}</button>
-          </form>
-        </td>
-        <td><span class="badge state-{{if eq .Status "locked"}}applied{{else}}pending{{end}}">{{TDef (printf "flakes.status.%s" .Status) .Status}}</span></td>
-        <td>
-          <form method="post" action="/flakes/{{.Name}}/delete"
-                onsubmit="return confirm('{{T "flakes.remove-confirm" .Name}}')">
-            <button class="danger">{{T "flakes.remove"}}</button>
-          </form>
-        </td>
-      </tr>
-      {{end}}
-    </tbody>
-  </table>
-  {{else}}
-  <p class="empty">{{T "flakes.empty"}}</p>
-  {{end}}
-
-  <div id="job-panel"></div>
-</section>
+</dialog>
 {{end}}

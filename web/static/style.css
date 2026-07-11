@@ -543,17 +543,24 @@ textarea.editor:focus { outline: none; border-color: var(--accent); }
 .badge.state-applied { color: var(--ok); border-color: var(--ok); }
 .badge.badge-on { color: var(--ok); border-color: var(--ok); }
 
-/* Secrets table. Keep the delivery and action cells as real table cells
-   (no display:flex on a td — that drops it out of the row's column layout);
-   lay their contents out inline instead. Badges drop the default
-   margin-left:auto so they pack left; the inline delete form sits beside
-   the Edit button without adding block flow. */
-.secrets-table { margin: 0; }
-.secrets-table td { vertical-align: middle; }
+/* Modal-editor tables (Secrets, Flakes): a plain listing whose rows edit
+   through the shared dialog. Keep the action/badge cells as real table
+   cells (no display:flex on a td — that drops it out of the row's column
+   layout) and lay their contents out inline; the inline delete form sits
+   beside the Edit button without adding block flow. */
+.secrets-table,
+.flakes-table { margin: 0; }
+.secrets-table td,
+.flakes-table td { vertical-align: middle; }
+.secrets-table .row-actions,
+.flakes-table .row-actions { text-align: right; white-space: nowrap; }
+.secrets-table .row-actions form,
+.flakes-table .row-actions form { display: inline-block; margin: 0 0 0 0.5rem; }
+.secrets-table tr:last-child td,
+.flakes-table tr:last-child td { border-bottom: none; }
+/* Secrets: the delivery cell packs a run of workload badges (drop the
+   default margin-left:auto so they align left). */
 .secrets-table .secret-targets .badge { display: inline-block; margin: 0 0.3rem 0.3rem 0; }
-.secrets-table .row-actions { text-align: right; white-space: nowrap; }
-.secrets-table .row-actions form { display: inline-block; margin: 0 0 0 0.5rem; }
-.secrets-table tr:last-child td { border-bottom: none; }
 
 .rev-content details pre {
   max-height: 240px;
