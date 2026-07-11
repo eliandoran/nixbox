@@ -1,21 +1,42 @@
 # nixbox
 
 A self-hosted web interface for managing a NixOS server's declarative
-containers — Portainer/Proxmox in spirit, but each container's
+workloads — Portainer/Proxmox in spirit, but each workload's
 configuration stays a raw Nix expression. nixbox handles the glue:
-composing containers into your system flake, running rebuilds, updating
-flake inputs, and showing status and logs.
+composing workloads into your system flake, running rebuilds, declaring
+and pinning flake inputs, and showing status and logs.
 
-**Status: early development (milestone 1 of 4).** The walking skeleton
-works: dashboard, rebuild pipeline with live log streaming, generated
-state flake. Container CRUD from the browser lands next.
+**Status: usable, pre-1.0.** What works today:
+
+- **Workloads** of three kinds — NixOS containers, OCI containers
+  (podman-backed), and host services (plain NixOS modules applied to the
+  host) — created from templates, edited as Nix in a CodeMirror editor
+  with syntax/eval checks, enabled, applied, renamed, destroyed. Every
+  save is a revision that can be restored.
+- **Apply pipeline** with live log streaming; `nixos-rebuild switch`
+  builds fully before activating, so a failed apply never touches the
+  running system. Per-workload status, journal streaming, metrics,
+  lifecycle buttons, and an interactive shell.
+- **Secrets**: values age-encrypted to the host's SSH key, decrypted by
+  agenix at activation, mountable into containers.
+- **Flake inputs**: a registry of external flakes, locked on apply,
+  consumable from any workload.
+- **Auth**: PAM login against real system accounts, with a group gate
+  on top (a valid password alone is not enough).
+- An opt-in web terminal on the host, and a localized UI (English and
+  Romanian).
+
+Remaining roadmap: generation history and rollback, updating locked
+flake inputs, state export.
 
 ## How it works
 
 nixbox owns a small generated flake at `/var/lib/nixbox/state` that
 exports `nixosModules.default`, mapping each enabled workload's
-`workload.nix` into `containers.<name>`. Your host flake references it
-as a `path:` input, staying the single source of truth for the system:
+`workload.nix` into the host configuration (`containers.<name>` for
+NixOS containers, a podman unit for OCI containers, the module itself
+for host services). Your host flake references it as a `path:` input,
+staying the single source of truth for the system:
 
 ```nix
 {
@@ -73,12 +94,18 @@ Setup is two steps because the `path:` input must exist first:
 
 ```console
 $ nix develop
+$ just bundle     # once after checkout: web TS → web/static/app.js (gitignored, go:embed needs it)
 $ go test ./...
 $ just dev
 ```
 
 The devShell provides `just` as a command runner (`just --list` shows
-the recipes). `just dev` starts the dry-run server
+the recipes). The web frontend is TypeScript in `web/src`, bundled by
+esbuild into `web/static/app.js` — a build product, never committed —
+so `go build`/`test` fail on the missing embed until the first
+`just bundle` (`just dev` and the nix package bundle automatically;
+`just typecheck` runs `tsc`, which esbuild doesn't). `just dev` starts
+the dry-run server
 (`NIXBOX_DRY_RUN=1 NIXBOX_TERMINAL=1 NIXBOX_AUTH=none NIXBOX_STATE_DIR=./dev-state go run ./cmd/nixbox serve`);
 `NIXBOX_DRY_RUN` logs commands instead of executing them, so the full UI
 can be exercised without touching the system, `NIXBOX_TERMINAL=1`
