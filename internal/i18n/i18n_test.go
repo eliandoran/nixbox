@@ -1,6 +1,8 @@
 package i18n
 
 import (
+	"fmt"
+	"io/fs"
 	"reflect"
 	"testing"
 	"testing/fstest"
@@ -30,6 +32,46 @@ func TestLoadLocales(t *testing.T) {
 func TestLoadMissingDir(t *testing.T) {
 	if _, err := Load(fstest.MapFS{}, "i18n"); err == nil {
 		t.Fatal("Load of missing dir: want error, got nil")
+	}
+}
+
+func TestLoadMalformedJSON(t *testing.T) {
+	fsys := fstest.MapFS{
+		"i18n/en.json": {Data: []byte(`{"greet": "Hello"`)}, // missing closing brace
+	}
+	if _, err := Load(fsys, "i18n"); err == nil {
+		t.Fatal("Load of malformed JSON: want error, got nil")
+	}
+}
+
+// readErrFS lists one .json entry but fails to open it, exercising Load's
+// ReadFile error path (a file present at ReadDir time but unreadable).
+type readErrFS struct{}
+
+func (readErrFS) Open(name string) (fs.File, error) {
+	return nil, fmt.Errorf("boom: %s", name)
+}
+
+func (readErrFS) ReadDir(string) ([]fs.DirEntry, error) {
+	return fs.ReadDir(fstest.MapFS{"en.json": {Data: []byte("{}")}}, ".")
+}
+
+func TestLoadReadFileError(t *testing.T) {
+	if _, err := Load(readErrFS{}, "i18n"); err == nil {
+		t.Fatal("Load with unreadable file: want error, got nil")
+	}
+}
+
+func TestLocalizerEmptyPref(t *testing.T) {
+	b := testBundle(t)
+	// An empty/whitespace preference normalizes to "" and is skipped, so
+	// the builder still falls through to the default locale.
+	loc := b.Localizer("", "  ")
+	if got := loc.Lang(); got != DefaultLocale {
+		t.Errorf("Lang() = %q, want %q", got, DefaultLocale)
+	}
+	if got := loc.T("greet"); got != "Hello" {
+		t.Errorf("T(greet) = %q, want Hello", got)
 	}
 }
 
