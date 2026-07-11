@@ -237,6 +237,12 @@ func TestLoginNextSanitized(t *testing.T) {
 		"//evil.example":       "/",
 		"https://evil.example": "/",
 		"workloads":            "/",
+		// Browser URL parsing treats "\" as "/" and strips tabs and
+		// newlines, so each of these is //evil.example (scheme-relative,
+		// off-site) by the time a browser acts on the Location header.
+		`/\evil.example`:     "/",
+		"/\t/evil.example":   "/",
+		"/\r\n/evil.example": "/",
 	} {
 		w := post(t, s, "/login", url.Values{
 			"username": {"alice"}, "password": {"pw"}, "next": {next}})

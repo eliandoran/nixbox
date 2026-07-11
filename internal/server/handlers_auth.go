@@ -262,9 +262,16 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 // safeNext keeps post-login redirects on this site: an absolute-path
 // target is honored, anything else (external URLs, scheme-relative
-// //host tricks, garbage) falls back to the dashboard.
+// //host tricks, garbage) falls back to the dashboard. A leading "/"
+// alone is not enough: browsers parse "\" as "/" (so "/\host" is
+// scheme-relative //host) and strip tabs and newlines before parsing
+// (so "/\t/host" collapses to //host too), hence the second-character
+// and control-character checks.
 func safeNext(next string) string {
-	if strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") {
+	if strings.ContainsFunc(next, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return "/"
+	}
+	if strings.HasPrefix(next, "/") && !strings.HasPrefix(next, "//") && !strings.HasPrefix(next, "/\\") {
 		return next
 	}
 	return "/"
