@@ -62,6 +62,9 @@ in
   # Sandboxed builds need kernel namespace setups that don't work on
   # the VM's overlayed 9p store; dev VM only, so build unsandboxed.
   nix.settings.sandbox = false;
+  # Default parallelism (16 substitution jobs) unpacks several large
+  # closures at once and can OOM the guest; halve it — slower, alive.
+  nix.settings.max-substitution-jobs = 8;
 
   # The nginx template's 8080 is opened by nixbox itself (its Host ports
   # field feeds the generated state module's firewall), so the dev VM
@@ -110,9 +113,12 @@ in
   users.users.root.initialPassword = "nixbox";
 
   virtualisation.vmVariant.virtualisation = {
-    memorySize = 4096;
+    # Sized for realising a heavyweight flake-input workload (e.g. the
+    # nixarr/Jellyfin stack: multi-GB substitutions plus in-guest builds
+    # of its unsubstitutable tooling). 4 GiB OOMs during substitution.
+    memorySize = 8192;
     cores = 4;
-    diskSize = 12288;
+    diskSize = 24576;
     # Persist in-guest builds on the disk image. The default tmpfs
     # overlay is wiped on shutdown while the nix db (on the root disk)
     # is not, so a second boot would think derivations exist that are

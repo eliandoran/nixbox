@@ -73,6 +73,32 @@ var containerTemplates = []Template{
 }
 `,
 	},
+	{
+		ID:   "flake-module",
+		Name: "Flake module",
+		Description: "Runs a module from a flake declared in the Flakes tab, " +
+			"inside the container. Note the leading `{ flakeInputs }:`.",
+		// The whole expression is a function of { flakeInputs } (the inputs
+		// declared in the Flakes tab). It imports one input's NixOS module
+		// into the container and configures it. Swap "example" for the input
+		// name you added, and set its options.
+		Content: `{ flakeInputs }: {
+  autoStart = true;
+
+  config = { config, pkgs, lib, ... }: {
+    # Requires a flake input named "example" (Flakes tab). The module runs
+    # inside this container, so its ports are the container's — open them in
+    # the Host ports field if the container shares the host network.
+    imports = [ flakeInputs.example.nixosModules.default ];
+
+    # Configure whatever the module provides, e.g.:
+    # services.example.enable = true;
+
+    system.stateVersion = "26.05";
+  };
+}
+`,
+	},
 }
 
 // ociTemplates are offered when creating an oci-container; the

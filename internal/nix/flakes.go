@@ -67,11 +67,16 @@ func renderFlake(inputs []FlakeInput) string {
 	}
 	b.WriteString("  };\n\n")
 
-	// Fixed outputs: only the workload composition. Declared inputs are
-	// intentionally unreferenced here — where they get used is handled
-	// separately — but Nix still locks them.
-	b.WriteString("  outputs = { self, ... }: {\n")
-	b.WriteString("    nixosModules.default = import ./modules/default.nix;\n")
+	// Outputs expose the workload composition and thread the declared flake
+	// inputs down to every workload via the `flakeInputs` module arg, so a
+	// workload.nix can import a module from an input (e.g. a NixOS container
+	// that pulls in a flake declared in the Flakes tab). Inputs a workload
+	// doesn't reference are still just locked, never built.
+	b.WriteString("  outputs = { self, ... }@inputs: {\n")
+	b.WriteString("    nixosModules.default = { ... }: {\n")
+	b.WriteString("      imports = [ ./modules/default.nix ];\n")
+	b.WriteString("      _module.args.flakeInputs = inputs;\n")
+	b.WriteString("    };\n")
 	b.WriteString("  };\n}\n")
 	return b.String()
 }

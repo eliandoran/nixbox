@@ -30,13 +30,20 @@ func CheckSyntax(ctx context.Context, path string) error {
 // CheckEval imports the workload file and forces its top-level
 // attribute names, catching evaluation errors beyond syntax (missing
 // semicolons parse fine but undefined variables don't eval).
+//
+// It mirrors the composition's lib.toFunction: a workload written as
+// `{ flakeInputs }: { ... }` is applied to a stub before attrNames.
+// The stub is empty — attrNames only forces the top-level keys, so a
+// lazy reference like flakeInputs.<name> inside the config is never
+// evaluated here; resolving real inputs is the apply pipeline's job.
 func CheckEval(ctx context.Context, path string) error {
 	bin, err := exec.LookPath("nix")
 	if err != nil {
 		return nil
 	}
+	const apply = `v: builtins.attrNames (if builtins.isFunction v then v { flakeInputs = { }; } else v)`
 	out, err := exec.CommandContext(ctx, bin, "eval", "--json",
-		"--file", path, "--apply", "builtins.attrNames").CombinedOutput()
+		"--file", path, "--apply", apply).CombinedOutput()
 	if err != nil {
 		return errors.New(cleanNixError(string(out)))
 	}

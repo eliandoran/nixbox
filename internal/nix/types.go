@@ -100,13 +100,22 @@ func RegisteredTypes() []WorkloadType {
 // containers.<name>. The firewall merge lives in the shared hostPorts
 // module, so this stays purely about the container set. `or { }` keeps it
 // evaluating against an index generated before this type existed.
-const nixosContainerModule = `{ lib, ... }:
+//
+// Each workload.nix is applied to { flakeInputs } via lib.toFunction: a
+// plain attrset (the common case) ignores the arg, while a workload written
+// as `{ flakeInputs }: { ... }` receives the declared flake inputs and can
+// import a module from one inside its container config
+// (imports = [ flakeInputs.<name>.nixosModules.default ]). flakeInputs is
+// supplied by the flake output via _module.args (see flakes.go).
+const nixosContainerModule = `{ lib, flakeInputs, ... }:
 
 let
   index = import ../index.nix;
 in
 {
-  containers = lib.mapAttrs (name: path: import path) (index.containers or { });
+  containers = lib.mapAttrs
+    (name: path: lib.toFunction (import path) { inherit flakeInputs; })
+    (index.containers or { });
 }
 `
 
@@ -118,7 +127,7 @@ in
 // contributes nothing when containers is empty, so podman is only pulled
 // in once an OCI workload exists. `or { }` keeps it evaluating against an
 // index generated before this type existed.
-const ociContainerModule = `{ lib, ... }:
+const ociContainerModule = `{ lib, flakeInputs, ... }:
 
 let
   index = import ../index.nix;
@@ -126,7 +135,7 @@ in
 {
   virtualisation.oci-containers.backend = lib.mkDefault "podman";
   virtualisation.oci-containers.containers =
-    lib.mapAttrs (name: path: import path) (index.ociContainers or { });
+    lib.mapAttrs (name: path: lib.toFunction (import path) { inherit flakeInputs; }) (index.ociContainers or { });
 }
 `
 

@@ -16,8 +16,11 @@ func TestRenderFlakeNoInputs(t *testing.T) {
   inputs = {
   };
 
-  outputs = { self, ... }: {
-    nixosModules.default = import ./modules/default.nix;
+  outputs = { self, ... }@inputs: {
+    nixosModules.default = { ... }: {
+      imports = [ ./modules/default.nix ];
+      _module.args.flakeInputs = inputs;
+    };
   };
 }
 `
@@ -43,8 +46,11 @@ func TestRenderFlakeInputs(t *testing.T) {
     nixflix = { url = "github:owner/nixflix"; inputs.nixpkgs.follows = "nixpkgs"; };
   };
 
-  outputs = { self, ... }: {
-    nixosModules.default = import ./modules/default.nix;
+  outputs = { self, ... }@inputs: {
+    nixosModules.default = { ... }: {
+      imports = [ ./modules/default.nix ];
+      _module.args.flakeInputs = inputs;
+    };
   };
 }
 `

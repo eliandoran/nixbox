@@ -127,9 +127,17 @@ vanilla-JS EventSource for SSE (`web/static/app.js`); all assets embedded via
   composition. The pipeline's `nix flake lock` step re-locks before the host
   update: adding a workload *type* never re-locks, but declaring an input (a new
   dependency) does. `Init` only seeds `flake.nix`/`flake.lock` when absent so it
-  never clobbers a locked, input-bearing flake. Wiring an input into a workload or
-  the host is intentionally a separate, not-yet-built concern. An input's
-  pending/locked badge is derived from timestamps (`applied_at` vs `updated_at`).
+  never clobbers a locked, input-bearing flake. An input's pending/locked badge
+  is derived from timestamps (`applied_at` vs `updated_at`).
+- Consuming an input: the flake output threads the declared inputs into every
+  workload via `_module.args.flakeInputs`, and each type module composes a
+  workload with `lib.toFunction (import path) { inherit flakeInputs; }`. A plain
+  attrset `workload.nix` (the common case) ignores the arg; one written as
+  `{ flakeInputs }: { ... }` receives the inputs and can import a module from one
+  inside its own config — e.g. a nixos-container whose `config.imports` pulls in
+  `flakeInputs.<name>.nixosModules.default`. `lib.toFunction` is what keeps
+  existing attrset workloads working unchanged. So the Flakes tab (declare +
+  lock) and consumption (reference from a workload) stay decoupled.
 - Containers without `privateNetwork` share the host's network namespace:
   their ports must be opened in the *host's* firewall (the dev VM opens 8080
   for the nginx template).
