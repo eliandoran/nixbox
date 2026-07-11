@@ -348,7 +348,8 @@ pre.log:empty::before {
 .narrow { max-width: 560px; }
 
 .form label { display: block; margin: 0.75rem 0 0.25rem; color: var(--muted); }
-.form input[type="text"] {
+.form input[type="text"],
+.form textarea:not(.editor) {
   font: inherit;
   width: 100%;
   padding: 0.4rem 0.6rem;
@@ -357,7 +358,9 @@ pre.log:empty::before {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
-.form input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.form textarea:not(.editor) { resize: vertical; }
+.form input[type="text"]:focus,
+.form textarea:not(.editor):focus { outline: none; border-color: var(--accent); }
 
 .hint { color: var(--muted); font-size: 0.85rem; }
 
